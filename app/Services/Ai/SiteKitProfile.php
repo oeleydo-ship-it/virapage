@@ -48,6 +48,10 @@ class SiteKitProfile
             'label' => 'Meridian',
             'note' => 'Developer infrastructure and fintech. Near-white with pastel gradient-mesh panels, a lavender band for company pages, ink-dark enterprise bands, solid black pill buttons.',
         ],
+        'aperture' => [
+            'label' => 'Aperture',
+            'note' => 'Creative agency and design studio. A white sheet broken by ink-black service bands and faint cool-grey process bands, one warm coral accent on kickers and numbering, large geometric headlines set tight, heavily rounded photography.',
+        ],
         'anchor' => [
             'label' => 'Anchorline',
             'note' => 'Editorial freight forwarding and logistics. A wide near-white sheet ruled by hairlines, Newsreader serif headlines over Poppins body, a utility bar above the navbar, and a photo hero cut by a diagonal brand wedge.',

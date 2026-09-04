@@ -342,6 +342,16 @@ class TemplateSeeder extends Seeder
             theme: TemplateAnchorline::theme(),
             pages: TemplateAnchorline::pages(),
         );
+
+        $this->publish(
+            category: ['slug' => 'agency', 'name' => 'Agency'],
+            slug: 'aperture',
+            name: 'Aperture',
+            description: 'A creative-agency and design-studio kit: a white sheet broken by ink-black service and ticker bands and faint cool-grey process bands, one warm coral accent on kickers, numbering and every hover, large geometric headlines set tight over soft slate body copy, heavily rounded photography, a numbered service list, a project grid, a counter row, an infinite discipline ticker, a testimonial wall and a newsletter footer, across eight fully editable pages.',
+            featured: true,
+            theme: TemplateAperture::theme(),
+            pages: TemplateAperture::pages(),
+        );
     }
 
     /**

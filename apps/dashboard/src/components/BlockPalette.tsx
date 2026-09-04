@@ -61,6 +61,7 @@ export const TEMPLATE_KITS: TemplateKit[] = [
   { id: 'halcyon', label: 'Halcyon', matches: (type) => type.includes('.halcyon') },
   { id: 'meridian', label: 'Meridian', matches: (type) => type.includes('.meridian') },
   { id: 'anchorline', label: 'Anchorline', matches: (type) => type.includes('.anchor') },
+  { id: 'aperture', label: 'Aperture', matches: (type) => type.includes('.aperture') },
   {
     id: 'studio',
     label: 'Studio',
