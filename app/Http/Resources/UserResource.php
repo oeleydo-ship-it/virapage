@@ -2,10 +2,12 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
+use App\Services\AvatarService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/** @mixin \App\Models\User */
+/** @mixin User */
 class UserResource extends JsonResource
 {
     /**
@@ -34,6 +36,9 @@ class UserResource extends JsonResource
             'name' => $this->name,
             'email' => $this->email,
             'email_verified' => $this->hasVerifiedEmail(),
+            'avatar_url' => app(AvatarService::class)->url($this->avatar_url),
+            'has_password' => $this->password_set_at !== null,
+            'google_connected' => $this->google_id !== null,
             'email_verified_at' => $this->email_verified_at,
             'role' => $this->whenPivotLoaded('workspace_users', fn () => $this->pivot->role),
             'current_workspace_id' => $this->current_workspace_id,

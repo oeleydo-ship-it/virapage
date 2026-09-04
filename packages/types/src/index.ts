@@ -116,6 +116,10 @@ export interface User {
   name: string
   email: string
   email_verified?: boolean
+  avatar_url?: string | null
+  /** False for accounts created through Google, which get a generated password. */
+  has_password?: boolean
+  google_connected?: boolean
   email_verified_at?: string | null
   current_workspace_id?: number | null
   is_super_admin?: boolean

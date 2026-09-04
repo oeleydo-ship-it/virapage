@@ -14,12 +14,30 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-#[Fillable(['name', 'email', 'password', 'google_id', 'avatar_url', 'current_workspace_id', 'is_super_admin', 'blocked_at', 'blocked_reason'])]
+#[Fillable(['name', 'email', 'password', 'password_set_at', 'google_id', 'avatar_url', 'current_workspace_id', 'is_super_admin', 'blocked_at', 'blocked_reason'])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
+
+    /**
+     * A new account is assumed to know its own password unless whoever
+     * created it says otherwise.
+     *
+     * The alternative default is unsafe: a row created by any path that does
+     * not think about this column would look like a Google account, and
+     * Google accounts are allowed to set a password without confirming the
+     * old one. Only GoogleAuthService passes null here, deliberately.
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (self $user) {
+            if (! array_key_exists('password_set_at', $user->getAttributes())) {
+                $user->password_set_at = now();
+            }
+        });
+    }
 
     /**
      * @return array<string, string>
@@ -29,6 +47,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'password_set_at' => 'datetime',
             'is_super_admin' => 'boolean',
             'two_factor_confirmed_at' => 'datetime',
             'blocked_at' => 'datetime',

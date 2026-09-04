@@ -120,14 +120,21 @@ class GoogleAuthService
                 'google_id' => $profile['id'],
                 'avatar_url' => $profile['avatar'],
                 'password' => Str::password(40),
-                'email_verified_at' => $profile['email_verified'] ? now() : null,
+                // Nobody has ever seen this password, so it does not count as
+                // one they chose: null lets them set a first password from
+                // their session instead of confirming a secret they lack.
+                'password_set_at' => null,
+                // Google is the identity provider here, so its account is the
+                // verification: no separate email-verification step for
+                // Google sign-ups, regardless of Google's own claim.
+                'email_verified_at' => now(),
             ]);
             $workspaces->createPersonal($user);
         } else {
             $user->forceFill([
                 'google_id' => $user->google_id ?: $profile['id'],
                 'avatar_url' => $profile['avatar'] ?: $user->avatar_url,
-                'email_verified_at' => $user->email_verified_at ?: ($profile['email_verified'] ? now() : null),
+                'email_verified_at' => $user->email_verified_at ?: now(),
                 'name' => $user->name ?: $profile['name'],
             ])->save();
         }

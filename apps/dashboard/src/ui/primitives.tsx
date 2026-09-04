@@ -52,6 +52,86 @@ export function Card({
   )
 }
 
+export interface TabItem {
+  id: string
+  label: string
+  /** Optional count shown after the label, e.g. how many devices are signed in. */
+  badge?: number
+}
+
+/**
+ * A row of tabs for splitting one page into sections.
+ *
+ * Rendered as real tab semantics rather than styled buttons, so the arrow keys
+ * and a screen reader behave the way people expect from a tab strip.
+ */
+export function Tabs({
+  items,
+  value,
+  onChange,
+  className,
+}: {
+  items: TabItem[]
+  value: string
+  onChange: (id: string) => void
+  className?: string
+}) {
+  const move = (delta: number) => {
+    const index = items.findIndex((item) => item.id === value)
+    if (index < 0) return
+    const next = items[(index + delta + items.length) % items.length]
+    if (next) onChange(next.id)
+  }
+
+  return (
+    <div
+      role="tablist"
+      className={cn('flex flex-wrap gap-1 border-b border-zinc-800', className)}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowRight') { event.preventDefault(); move(1) }
+        if (event.key === 'ArrowLeft') { event.preventDefault(); move(-1) }
+      }}
+    >
+      {items.map((item) => {
+        const active = item.id === value
+        return (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            id={`tab-${item.id}`}
+            aria-selected={active}
+            aria-controls={`panel-${item.id}`}
+            tabIndex={active ? 0 : -1}
+            onClick={() => onChange(item.id)}
+            className={cn(
+              '-mb-px border-b-2 px-3.5 py-2.5 text-sm font-medium transition',
+              active
+                ? 'border-blue-500 text-white'
+                : 'border-transparent text-zinc-400 hover:border-zinc-700 hover:text-zinc-200',
+            )}
+          >
+            {item.label}
+            {typeof item.badge === 'number' ? (
+              <span className="ml-1.5 rounded-full bg-zinc-800 px-1.5 py-0.5 text-xs text-zinc-400">{item.badge}</span>
+            ) : null}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** The body belonging to a tab, wired to it for assistive technology. */
+export function TabPanel({ id, active, children }: { id: string; active: boolean; children: ReactNode }) {
+  if (!active) return null
+  return (
+    <div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tab-${id}`} className="space-y-6">
+      {children}
+    </div>
+  )
+}
+
 export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
   return (
     <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
