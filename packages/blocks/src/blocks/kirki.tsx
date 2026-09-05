@@ -289,18 +289,26 @@ export const logosKirki = defineBlock({
     }),
   ),
   component: function LogosKirki(props) {
+    const edit = editOf(props)
     const logos = items(props.logos, [])
     return (
       <SectionShell props={props} tone="default" className="ud-kk ud-kk-logos">
-        {str(props.heading) ? <p className="ud-kk-logos__label">{str(props.heading)}</p> : null}
+        {str(props.heading) ? (
+          <EditableText edit={edit} path={['heading']} value={str(props.heading)} as="p" className="ud-kk-logos__label" />
+        ) : null}
         <div className="ud-kk-logos__row">
           {logos.map((logo, index) =>
             str(logo.image) ? (
               <img key={index} src={str(logo.image)} alt={str(logo.label)} loading="lazy" />
             ) : (
-              <span key={index} className="ud-logo-text">
-                {str(logo.label, 'Brand')}
-              </span>
+              <EditableText
+                key={index}
+                edit={edit}
+                path={['logos', index, 'label']}
+                value={str(logo.label, 'Brand')}
+                as="span"
+                className="ud-logo-text"
+              />
             ),
           )}
         </div>
@@ -370,7 +378,7 @@ export const aboutKirki = defineBlock({
     eyebrow: 'Brief about',
     heading: 'Driving Exceptional Results for Modern Businesses',
     description: 'We specialize in helping businesses navigate complex challenges and achieve sustainable growth.',
-    checklist: ['Strategic solutions for growth', 'Proven methodologies & secure data handling', 'Flexible partnerships on your own terms'],
+    checklist: [{ text: 'Strategic solutions for growth' }, { text: 'Proven methodologies & secure data handling' }, { text: 'Flexible partnerships on your own terms' }],
     buttonLabel: 'Get a Proposal',
     buttonUrl: '/contact',
     image: '',
@@ -380,15 +388,20 @@ export const aboutKirki = defineBlock({
     eyebrowField,
     headingField,
     descriptionField,
-    textarea('checklist', 'Checklist (one per line)'),
+    repeater('checklist', 'Checklist', [text('text', 'Item')], { itemLabel: 'Item', itemDefaults: { text: 'New point' } }),
     ...primaryCtaFields,
     image('image', 'Image'),
   ),
   component: function AboutKirki(props) {
     const edit = editOf(props)
     const centered = str(props.layout, 'image-left') === 'centered'
-    const checks = (Array.isArray(props.checklist) ? props.checklist : str(props.checklist).split(/\r?\n+/))
-      .map((line: unknown) => String(line).trim())
+    // Rows now, but sites saved before this was a repeater hold plain strings
+    // or one newline-separated blob, and those must keep rendering.
+    const rawChecks: unknown[] = Array.isArray(props.checklist)
+      ? props.checklist
+      : str(props.checklist).split(/\r?\n+/)
+    const checks = rawChecks
+      .map((entry) => (entry && typeof entry === 'object' ? String((entry as { text?: unknown }).text ?? '') : String(entry)).trim())
       .filter(Boolean)
     if (centered) {
       return (
@@ -409,7 +422,7 @@ export const aboutKirki = defineBlock({
                 {checks.map((line, index) => (
                   <li key={index}>
                     <Icon name="check" size={16} />
-                    <span>{line}</span>
+                    <EditableText edit={edit} path={['checklist', index, 'text']} value={line} as="span" />
                   </li>
                 ))}
               </ul>
@@ -944,6 +957,7 @@ export const footerKirki = defineBlock({
     text('copyright', 'Copyright line'),
   ),
   component: function FooterKirki(props) {
+    const edit = editOf(props)
     const columns = items(props.columns, [])
     const offices = items(props.offices, [])
     const socials = items(props.socials, [])
@@ -953,7 +967,7 @@ export const footerKirki = defineBlock({
           <div className="ud-kk-footer__top">
             <a href="/" className="ud-kk-nav__logo">
               <Icon name="hexagon" size={20} />
-              {str(props.logoText, 'Kirki')}
+              <EditableText edit={edit} path={['logoText']} value={str(props.logoText, 'Kirki')} as="span" />
             </a>
             <div className="ud-kk-footer__newsletter">
               <span>Email</span>

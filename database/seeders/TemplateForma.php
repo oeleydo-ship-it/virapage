@@ -17,40 +17,59 @@ class TemplateForma
 
     public static function pages(): array
     {
-        $nav = TemplateContent::nav('forma.', [
-            ['label' => 'Work', 'url' => '/work'], ['label' => 'Services', 'url' => '/services'],
-            ['label' => 'Studio', 'url' => '/about'],
-        ], ['buttonLabel' => 'Let’s talk', 'buttonUrl' => '/contact', 'sticky' => true]);
-        $footer = TemplateContent::footer('forma.', [
+        // Built here rather than through TemplateContent::nav()/footer(): those
+        // shape props for the shared navbar.cta and footer.multi_column blocks,
+        // which name their fields differently and take link columns as
+        // pipe-delimited strings.
+        $nav = [
+            'logoText' => 'forma.',
+            'links' => [
+                ['label' => 'Work', 'url' => '/work'],
+                ['label' => 'Services', 'url' => '/services'],
+                ['label' => 'Studio', 'url' => '/about'],
+            ],
+            'buttonLabel' => 'Let’s talk',
+            'buttonUrl' => '/contact',
+            'sticky' => true,
+        ];
+        $footer = [
+            'brand' => 'forma.',
             'tagline' => 'Independent minds. Thoughtful design.',
             'columns' => [
-                ['title' => 'Explore', 'links' => "Work|/work\nServices|/services\nStudio|/about"],
-                ['title' => 'Say hello', 'links' => "Start a project|/contact"],
-            ], 'showNewsletter' => false,
-        ]);
+                ['title' => 'Explore', 'links' => [
+                    ['label' => 'Work', 'url' => '/work'],
+                    ['label' => 'Services', 'url' => '/services'],
+                    ['label' => 'Studio', 'url' => '/about'],
+                ]],
+                ['title' => 'Say hello', 'links' => [
+                    ['label' => 'Start a project', 'url' => '/contact'],
+                ]],
+            ],
+            'copyright' => '© '.date('Y').' Forma Studio. All rights reserved.',
+        ];
         $section = fn (string $id, string $type, array $props = []) => TemplateContent::section($id, $type, $props);
         return [
             TemplateContent::sitePage('Home', 'home', true, $nav, [
                 $section('hero', 'hero.forma'), $section('services', 'services.forma'),
                 $section('work', 'gallery.forma'), $section('process', 'content.forma'), $section('contact', 'cta.forma'),
-            ], $footer),
+            ], $footer, 'footer.forma', 'navbar.forma'),
             TemplateContent::sitePage('Work', 'work', false, $nav, [
                 $section('hero', 'hero.forma', ['heading' => 'A collection of considered ideas.', 'layout' => 'centered', 'showArtwork' => false, 'buttonLabel' => '', 'secondaryLabel' => '']),
                 $section('work', 'gallery.forma', ['layout' => 'grid']), $section('contact', 'cta.forma'),
-            ], $footer),
+            ], $footer, 'footer.forma', 'navbar.forma'),
             TemplateContent::sitePage('Services', 'services', false, $nav, [
                 $section('hero', 'hero.forma', ['heading' => 'From first thought to final detail.', 'layout' => 'reverse', 'buttonLabel' => 'Discuss your project', 'buttonUrl' => '/contact']),
                 $section('services', 'services.forma', ['layout' => 'list']),
                 $section('process', 'content.forma', ['layout' => 'accordion']), $section('contact', 'cta.forma', ['layout' => 'split']),
-            ], $footer),
+            ], $footer, 'footer.forma', 'navbar.forma'),
             TemplateContent::sitePage('Studio', 'about', false, $nav, [
                 $section('hero', 'hero.forma', ['heading' => 'Curious people. Shared purpose.', 'description' => 'We are an independent studio working at the intersection of strategy, identity, and digital design. We believe the best work starts with a good conversation.', 'buttonLabel' => 'Meet your next creative partner', 'buttonUrl' => '/contact', 'secondaryLabel' => '']),
                 $section('process', 'content.forma'), $section('contact', 'cta.forma'),
-            ], $footer),
+            ], $footer, 'footer.forma', 'navbar.forma'),
             TemplateContent::sitePage('Contact', 'contact', false, $nav, [
                 $section('hero', 'hero.forma', ['heading' => 'Every good project starts here.', 'description' => 'Tell us about your idea, timeline, and what you hope to achieve.', 'layout' => 'centered', 'showArtwork' => false, 'buttonLabel' => '', 'secondaryLabel' => '']),
                 $section('form', 'form.contact', ['heading' => 'Tell us what you have in mind', 'buttonLabel' => 'Send inquiry', 'details' => []]),
-            ], $footer),
+            ], $footer, 'footer.forma', 'navbar.forma'),
         ];
     }
 }

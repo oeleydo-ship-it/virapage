@@ -33,7 +33,9 @@ describe('Forma blocks and library', () => {
     render(<BlockPalette onAdd={onAdd} />)
     expect(screen.queryByTitle('Add Forma / Editorial hero')).toBeNull()
     fireEvent.change(screen.getByLabelText('Block library'), { target: { value: 'forma' } })
-    expect(screen.getByRole('status').textContent).toContain('5 blocks')
+    // Seven since the kit gained its own navbar and footer; six is the minimum
+    // for SiteKitProfile to treat a family as a kit at all.
+    expect(screen.getByRole('status').textContent).toContain('7 blocks')
     fireEvent.click(screen.getByTitle('Add Forma / Editorial hero'))
     expect(onAdd).toHaveBeenCalledWith('hero.forma')
     fireEvent.change(screen.getByLabelText('Search blocks'), { target: { value: 'nothing-matches-this' } })

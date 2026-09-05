@@ -36,6 +36,10 @@ class SiteKitProfile
      * @var array<string, array{label: string, note: string}>
      */
     public const KIT_NOTES = [
+        'forma' => [
+            'label' => 'Forma',
+            'note' => 'Independent design studio, editorial and warm. Bone-white and oat pages, terracotta accent, near-black serif headlines set tight, pill buttons, numbered sections and full-bleed project artwork.',
+        ],
         'voltera' => [
             'label' => 'Voltera',
             'note' => 'High-energy marketing agency. Electric indigo-blue panels on white, chartreuse lime pill buttons, near-black geometric headlines, generously rounded cards.',

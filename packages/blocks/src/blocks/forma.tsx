@@ -1,6 +1,6 @@
 import { EditableText, editOf } from '../editable'
-import { CtaGroup, Media, SafeText, SectionShell, bool, items, str, type Props } from '../primitives'
-import { ctaFields, headFields, image, repeater, schema, select, text, textarea, toggle } from '../schema'
+import { CtaGroup, Media, SafeText, SectionShell, bool, cx, items, str, type Props } from '../primitives'
+import { ctaFields, headFields, image, link, navLinksField, primaryCtaFields, repeater, schema, select, stickyField, text, textarea, toggle } from '../schema'
 import { defineBlock } from '../types'
 
 function Heading({ props, hero = false }: { props: Props; hero?: boolean }) {
@@ -48,5 +48,36 @@ export const formaBlocks = [
     schema: schema(...headFields, ...ctaFields, select('layout', 'Invitation layout', ['centered', 'split'])),
     component: (props) => <SectionShell props={props} className={`ud-forma ud-forma-cta ud-forma-cta--${str(props.layout, 'centered')}`}><div className="ud-forma-invitation"><Heading props={props} /><CtaGroup props={props} /></div></SectionShell>,
   }),
+  defineBlock({
+    type: 'navbar.forma', version: 1, category: 'navigation', label: 'Forma / Wordmark navbar', icon: 'PanelTop',
+    defaultProps: { paddingTop: 0, paddingBottom: 0, logoText: 'forma.', logoImage: '', links: [{ label: 'Work', url: '/work' }, { label: 'Services', url: '/services' }, { label: 'Studio', url: '/about' }], buttonLabel: 'Let’s talk', buttonUrl: '/contact', sticky: true },
+    schema: schema(text('logoText', 'Wordmark'), image('logoImage', 'Logo image'), navLinksField(), ...primaryCtaFields, stickyField),
+    // The sticky class is paired with ud-forma-nav so the rule carries two
+    // classes: a single-class rule elsewhere would otherwise outrank it.
+    component: (props) => <SectionShell props={props} className="ud-forma ud-forma-nav-wrap" bleed>
+      <div className={cx('ud-forma-nav', bool(props.sticky, true) && 'ud-forma-nav--sticky')}>
+        <a href="/" className="ud-forma-nav__logo">{str(props.logoImage) ? <Media src={str(props.logoImage)} alt={str(props.logoText, 'Logo')} edit={editOf(props)} path={['logoImage']} /> : <EditableText edit={editOf(props)} path={['logoText']} value={str(props.logoText, 'forma.')} as="span" />}</a>
+        <nav className="ud-forma-nav__links">{items(props.links, []).map((item, i) => <a key={i} href={str(item.url, '#')}>{str(item.label, 'Link')}</a>)}</nav>
+        <CtaGroup props={props} className="ud-forma-nav__cta" />
+      </div>
+    </SectionShell>,
+  }),
+  defineBlock({
+    type: 'footer.forma', version: 1, category: 'footer', label: 'Forma / Studio footer', icon: 'PanelBottom',
+    defaultProps: { paddingTop: 72, paddingBottom: 40, brand: 'forma.', tagline: 'Independent minds. Thoughtful design.', columns: [{ title: 'Explore', links: [{ label: 'Work', url: '/work' }, { label: 'Services', url: '/services' }, { label: 'Studio', url: '/about' }] }, { title: 'Say hello', links: [{ label: 'Start a project', url: '/contact' }] }], copyright: '© Forma Studio. All rights reserved.' },
+    schema: schema(text('brand', 'Wordmark'), textarea('tagline', 'Tagline'), repeater('columns', 'Link columns', [text('title', 'Title'), repeater('links', 'Links', [text('label', 'Label'), link('url', 'URL')], { itemLabel: 'Link' })], { itemLabel: 'Column' }), text('copyright', 'Copyright line')),
+    component: (props) => <SectionShell props={props} className="ud-forma ud-forma-footer" bleed>
+      <div className="ud-forma-footer__top">
+        <div className="ud-forma-footer__brand">
+          <EditableText edit={editOf(props)} path={['brand']} value={str(props.brand, 'forma.')} as="p" className="ud-forma-footer__mark" />
+          <SafeText value={props.tagline} edit={editOf(props)} path={['tagline']} className="ud-forma-footer__tagline" />
+        </div>
+        <div className="ud-forma-footer__columns">{items(props.columns, []).map((col, i) => <div key={i}>
+          <EditableText edit={editOf(props)} path={['columns', i, 'title']} value={str(col.title)} as="h3" />
+          <ul>{items(col.links, []).map((l, j) => <li key={j}><a href={str(l.url, '#')}>{str(l.label, 'Link')}</a></li>)}</ul>
+        </div>)}</div>
+      </div>
+      <EditableText edit={editOf(props)} path={['copyright']} value={str(props.copyright)} as="p" className="ud-forma-footer__legal" />
+    </SectionShell>,
+  }),
 ]
-

@@ -32,5 +32,25 @@ export const formaCss = `
 .ud-forma-process{display:grid;grid-template-columns:1fr 1fr;gap:80px}.ud-forma-step{padding:24px 0;border-top:1px solid var(--forma-line)}.ud-forma-step .ud-forma-number{margin-bottom:12px}.ud-forma-step .ud-h3{margin-bottom:12px}.ud-forma-step summary{cursor:pointer;font-size:20px;padding:8px 0}.ud-forma-step summary:focus-visible{outline:2px solid currentColor;outline-offset:4px}
 .ud-forma-cta--centered{text-align:center}.ud-forma-cta--centered .ud-forma-head,.ud-forma-cta--centered .ud-forma-description{margin-left:auto;margin-right:auto}.ud-forma-cta--centered .ud-btns{justify-content:center}.ud-forma-cta--split .ud-forma-invitation{display:flex;align-items:center;justify-content:space-between;gap:40px}
 @container (max-width:760px){.ud-forma-hero-grid,.ud-forma-services,.ud-forma-process{grid-template-columns:1fr;gap:32px}.ud-forma-hero--reverse .ud-forma-art{order:0}.ud-forma-hero .ud-h1{font-size:clamp(40px,10cqw,72px)}.ud-forma-services--list .ud-forma-service{grid-template-columns:1fr;gap:12px}.ud-forma-work{grid-template-columns:1fr}.ud-forma-cta--split .ud-forma-invitation{display:block}.ud-forma-art{min-height:340px}.ud-forma-project{height:280px}}
+/* navbar.forma / footer.forma - every colour comes from a theme token so the
+   kit recolours with the site rather than shipping its own palette. */
+.ud-forma-nav-wrap{padding:0}
+.ud-forma-nav{display:flex;align-items:center;justify-content:space-between;gap:32px;padding:20px 0;border-bottom:1px solid var(--forma-line)}
+.ud-forma .ud-forma-nav--sticky{position:sticky;top:0;z-index:40;background:var(--color-background);backdrop-filter:saturate(1.2) blur(8px)}
+.ud-forma-nav__logo{font:500 20px/1 var(--ud-font-heading, serif);letter-spacing:-.04em;color:var(--color-text);text-decoration:none}
+.ud-forma-nav__links{display:flex;align-items:center;gap:28px}
+.ud-forma-nav__links a{font-size:14px;color:var(--color-text);text-decoration:none;opacity:.75}
+.ud-forma-nav__links a:hover{opacity:1}
+.ud-forma-footer{border-top:1px solid var(--forma-line)}
+.ud-forma-footer__top{display:grid;grid-template-columns:1.2fr 1fr;gap:56px}
+.ud-forma-footer__mark{font:500 28px/1 var(--ud-font-heading, serif);letter-spacing:-.04em;margin:0 0 12px}
+.ud-forma-footer__tagline{max-width:320px;opacity:.75;line-height:1.7}
+.ud-forma-footer__columns{display:grid;grid-template-columns:repeat(2,1fr);gap:32px}
+.ud-forma-footer__columns h3{font-size:12px;text-transform:uppercase;letter-spacing:.14em;opacity:.6;margin:0 0 14px}
+.ud-forma-footer__columns ul{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.ud-forma-footer__columns a{font-size:14px;color:var(--color-text);text-decoration:none;opacity:.8}
+.ud-forma-footer__columns a:hover{opacity:1}
+.ud-forma-footer__legal{margin:48px 0 0;font-size:13px;opacity:.6}
+@container (max-width:760px){.ud-forma-nav__links{display:none}.ud-forma-footer__top{grid-template-columns:1fr;gap:32px}}
 `
 

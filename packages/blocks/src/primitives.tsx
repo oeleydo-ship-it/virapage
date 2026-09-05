@@ -630,6 +630,7 @@ export function Button({
   variant = 'primary',
   target,
   type: _type,
+  disabled,
   className,
   style,
 }: {
@@ -639,12 +640,14 @@ export function Button({
   target?: string
   /** Accepted for form-oriented blocks; Button renders a styled link. */
   type?: 'button' | 'submit'
+  /** Only meaningful with `type`, where a real <button> is rendered. */
+  disabled?: boolean
   className?: string
   style?: CSSProperties
 }) {
   if (_type) {
     return (
-      <button className={cx('ud-btn', `ud-btn--${variant}`, className)} type={_type} style={style}>
+      <button className={cx('ud-btn', `ud-btn--${variant}`, className)} type={_type} disabled={disabled} style={style}>
         {children}
       </button>
     )

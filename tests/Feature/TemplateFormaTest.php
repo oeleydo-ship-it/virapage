@@ -13,11 +13,22 @@ it('seeds Forma with five complete pages and registered reusable blocks', functi
     foreach ($template->pages as $page) {
         foreach ($page->content_json['sections'] as $section) {
             expect($catalog->has($section['type']))->toBeTrue();
-            if (str_ends_with($section['type'], '.forma')) {
+            // Chrome carries a wordmark, not a heading, so only the content
+            // blocks are held to that.
+            if (str_ends_with($section['type'], '.forma')
+                && ! in_array($section['type'], ['navbar.forma', 'footer.forma'], true)) {
                 expect($section['props']['heading'])->not->toBeEmpty();
             }
         }
     }
+    // Every page wears the kit's own chrome rather than the shared
+    // navbar.cta / footer.multi_column defaults.
+    foreach ($template->pages as $page) {
+        $types = collect($page->content_json['sections'])->pluck('type');
+        expect($types->first())->toBe('navbar.forma')
+            ->and($types->last())->toBe('footer.forma');
+    }
+
     $services = $template->pages->firstWhere('slug', 'services');
     expect(collect($services->content_json['sections'])->firstWhere('type', 'services.forma')['props']['layout'])->toBe('list');
 });
