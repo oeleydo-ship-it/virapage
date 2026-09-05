@@ -41,8 +41,10 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -138,6 +140,53 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->registerScopedBindings();
+        $this->seedReferenceDataAfterMigrate();
+    }
+
+    /**
+     * The plans, the template catalogue and the super admin are reference data:
+     * the application is unusable without them, and the catalogue grows with
+     * every release. A managed host clones each release and runs a fixed
+     * pipeline - composer, migrate, the asset build - with no step that seeds,
+     * so `migrate` is the one hook every pipeline runs and the seeding hangs
+     * off it.
+     *
+     * It hangs off the command rather than off MigrationsEnded, which the
+     * migrator fires only when it had something pending. A release that adds a
+     * template but no migration would never seed it, and that is exactly what
+     * happened: Aperture, Forma and Kirki were added five days after the
+     * migration that seeds ran, so every database that had already run it kept
+     * the older catalogue no matter how many times it was deployed.
+     *
+     * Every seeder this calls is keyed on a slug through updateOrCreate, so
+     * running it on each deploy re-publishes the same rows and changes nothing
+     * else.
+     */
+    private function seedReferenceDataAfterMigrate(): void
+    {
+        // RefreshDatabase re-runs the migrations for each test. Seeding the
+        // whole catalogue into every one of them would be slow, and visible to
+        // tests that assert on an empty catalogue.
+        if ($this->app->runningUnitTests()) {
+            return;
+        }
+
+        Event::listen(function (CommandFinished $event) {
+            if (! in_array($event->command, ['migrate', 'migrate:fresh'], true)) {
+                return;
+            }
+
+            // A dry run must stay dry, and `migrate:fresh --seed` has already
+            // done this. hasParameterOption rather than getOption because the
+            // two commands do not define the same options.
+            if ($event->exitCode !== 0
+                || $event->input->hasParameterOption('--pretend')
+                || $event->input->hasParameterOption('--seed')) {
+                return;
+            }
+
+            Artisan::call('db:seed', ['--force' => true], $event->output);
+        });
     }
 
     private function registerScopedBindings(): void

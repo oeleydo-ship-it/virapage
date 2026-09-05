@@ -46,12 +46,17 @@ cp .env.example .env   # then edit it, see below
 composer install --no-dev --prefer-dist --optimize-autoloader
 php artisan key:generate --force
 php artisan migrate --force
-php artisan db:seed --class=PlanSeeder --force
-php artisan db:seed --class=SuperAdminSeeder --force
 pnpm install --frozen-lockfile
 pnpm build
 php artisan storage:link
 ```
+
+`migrate` also seeds the reference data - the plans, the template catalogue
+and the super admin - so there is no separate seeding step. It does this on
+every run, not just the first, because the catalogue grows with each release
+and a deployment that only migrates would otherwise keep the catalogue it was
+created with. The seeders are keyed on slugs, so re-running costs a few
+seconds and changes nothing that is already correct.
 
 Point the web server's document root at **`public`**. The Laravel application
 is the repository root, so a managed host's stock PHP pipeline works with no
