@@ -1,7 +1,9 @@
 <?php
 
+use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Brings the reference data a deployment cannot start without in with the
@@ -30,7 +32,15 @@ return new class extends Migration
             return;
         }
 
-        Artisan::call('db:seed', ['--force' => true]);
+        // Deferred to the end of the run rather than called here. Seeders use
+        // today's models, and those expect columns that migrations dated after
+        // this one add - seeding inline asks the current User model to write
+        // password_set_at into a table that does not have it yet, which fails
+        // this migration and stops every migration behind it. By the time
+        // MigrationsEnded fires the schema is whole.
+        Event::listen(MigrationsEnded::class, function () {
+            Artisan::call('db:seed', ['--force' => true]);
+        });
     }
 
     public function down(): void
