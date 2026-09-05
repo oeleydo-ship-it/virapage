@@ -68,17 +68,25 @@ migrates comes up unusable: registration calls `assignFreePlan`, which does
 the template picker shows nothing; and there is no administrator to sign in as.
 
 `migrate` is the one step every pipeline runs, so the seeding hangs off it -
-`database/migrations/..._seed_reference_data.php` calls `db:seed`, which brings
-in the plans, the template catalogue and the super admin. Nothing to run by
-hand, and every seeder is keyed on a slug through `updateOrCreate`, so it is
-safe over a database that was already seeded.
+`AppServiceProvider::seedReferenceDataAfterMigrate` runs `db:seed` when the
+migrate command finishes, which brings in the plans, the template catalogue and
+the super admin. Nothing to run by hand, and every seeder is keyed on a slug
+through `updateOrCreate`, so it is safe over a database that was already
+seeded.
+
+It runs on **every** deploy, not only the ones that had a migration pending.
+This used to hang off the migration itself, which runs once per database, so a
+release that added a template and no migration never reached production - the
+catalogue stayed at whatever it held the day the migration first ran. Aperture,
+Forma and Kirki sat in that gap for a week.
 
 **Set `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` in `.env` before that
 release.** `SuperAdminSeeder` returns without doing anything when either is
 missing, silently, and you get no administrator.
 
-To pick up templates added after that migration has already run, re-seed by
-hand - the migration will not run twice:
+A database that fell behind while the seeding was still tied to the migration
+catches up on the next deploy, with nothing to run by hand. To pull the
+catalogue in without waiting for one:
 
 ```bash
 cd /var/www/<site>/current && php artisan db:seed --class=TemplateSeeder --force

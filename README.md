@@ -42,9 +42,7 @@ Laravel (SQLite is fine):
 cp .env.example .env
 composer install
 php artisan key:generate
-php artisan migrate
-php artisan db:seed --class=PlanSeeder
-php artisan db:seed --class=SuperAdminSeeder
+php artisan migrate          # also seeds plans, templates and the super admin
 php artisan storage:link
 php artisan serve            # http://localhost:8000
 ```
