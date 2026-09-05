@@ -1,5 +1,6 @@
 import type { BlockCategory } from '@uidesired/types'
 import { quarryBlocks } from './blocks/quarry'
+import { formaBlocks } from './blocks/forma'
 import {
   announceTessera,
   benefitsTessera,
@@ -41,7 +42,7 @@ import {
   contentTwoColumns,
 } from './blocks/content'
 import { commerceBuy } from './blocks/commerce'
-import { funnelOptin } from './blocks/funnel'
+import { funnelOptin, funnelQuiz } from './blocks/funnel'
 import { galleryCarousel, galleryGrid, galleryLogos, galleryMasonry, galleryShowcase } from './blocks/gallery'
 import { pricingComparison, pricingThree, pricingTwo } from './blocks/pricing'
 import { faqAccordion, faqTwoColumn } from './blocks/faq'
@@ -372,6 +373,24 @@ import {
   generatedStory,
   generatedVoices,
 } from './blocks/generated'
+import {
+  aboutKirki,
+  awardsKirki,
+  blogKirki,
+  caseStudiesKirki,
+  ctaKirki,
+  featuresKirki,
+  footerKirki,
+  heroKirki,
+  industriesKirki,
+  logosKirki,
+  navbarKirki,
+  pageHeadKirki,
+  reviewsKirki,
+  statsKirki,
+  teamKirki,
+  testimonialKirki,
+} from './blocks/kirki'
 import type { BlockDefinition } from './types'
 
 const blocks = [
@@ -459,6 +478,7 @@ const blocks = [
   galleryLogos,
   galleryShowcase,
   funnelOptin,
+  funnelQuiz,
   commerceBuy,
   galleryCompare,
   galleryProjects,
@@ -771,6 +791,23 @@ const blocks = [
   ctaBandTessera,
   footerTessera,
   ...quarryBlocks,
+  ...formaBlocks,
+  navbarKirki,
+  heroKirki,
+  pageHeadKirki,
+  logosKirki,
+  featuresKirki,
+  aboutKirki,
+  industriesKirki,
+  testimonialKirki,
+  statsKirki,
+  awardsKirki,
+  teamKirki,
+  caseStudiesKirki,
+  blogKirki,
+  reviewsKirki,
+  ctaKirki,
+  footerKirki,
 ]
 
 export const blockRegistry: Record<string, BlockDefinition> = Object.fromEntries(

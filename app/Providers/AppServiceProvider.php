@@ -37,11 +37,14 @@ use App\Services\Domains\FakeDomainProvider;
 use App\Services\Mail\MailSettingsService;
 use App\Services\Storage\StorageSettingsService;
 use App\Support\CurrentWorkspace;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
@@ -79,6 +82,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(LivechatWidget::class, LivechatPolicy::class);
         Gate::policy(LivechatConversation::class, LivechatPolicy::class);
         Gate::policy(Template::class, TemplatePolicy::class);
+
+        Event::listen(Registered::class, SendEmailVerificationNotification::class);
 
         ResetPassword::createUrlUsing(function (object $user, string $token) {
             $email = urlencode((string) ($user->email ?? ''));

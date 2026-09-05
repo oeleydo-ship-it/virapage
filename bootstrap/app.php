@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AllowPublicEmbedCors;
+use App\Http\Middleware\EnsureEmailIsVerifiedApi;
 use App\Http\Middleware\EnsureFeatureEnabled;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureUserNotBlocked;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'workspace' => EnsureWorkspace::class,
             'admin' => EnsureSuperAdmin::class,
             'not.blocked' => EnsureUserNotBlocked::class,
+            'verified.api' => EnsureEmailIsVerifiedApi::class,
             'request.id' => RequestId::class,
             'never.cache' => NeverCache::class,
             'security.headers' => SecurityHeaders::class,

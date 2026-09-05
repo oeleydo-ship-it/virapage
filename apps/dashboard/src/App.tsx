@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { DashboardLayout } from './layouts/DashboardLayout'
-import { AuthCallbackPage, ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage } from './pages/AuthPages'
+import { AuthCallbackPage, ForgotPasswordPage, LoginPage, RegisterPage, ResetPasswordPage, VerifyEmailNoticePage } from './pages/AuthPages'
 import { BuilderPage } from './pages/BuilderPage'
 import { MediaPage, TemplatesPage } from './pages/MiscPages'
 import { TemplateDemoPage } from './pages/TemplateDemoPage'
@@ -28,12 +28,20 @@ import { BlogPage, BlogPostDetailPage } from './pages/BlogPages'
 import { CreateFunnelPage, FunnelAnalyticsPage, FunnelBuilderPage, FunnelLeadsPage, FunnelsPage, FunnelSettingsPage, FunnelTemplatesPage } from './pages/FunnelPages'
 import { FunnelStepEditorPage } from './pages/FunnelStepEditorPage'
 import { getToken } from './lib/api'
+import { authApi } from './lib/auth'
 import { featuresApi } from './lib/endpoints'
 import { useQuery } from '@tanstack/react-query'
 import SitePreviewPage from '@/pages/SitePreviewPage'
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  if (!getToken()) return <Navigate to="/login" replace />
+  const token = getToken()
+  const me = useQuery({ queryKey: ['me'], queryFn: authApi.user, enabled: Boolean(token) })
+
+  if (!token) return <Navigate to="/login" replace />
+  if (me.isLoading) return null
+  // Google sign-ins arrive already verified, so this only ever gates
+  // accounts that registered with a password.
+  if (me.data && !me.data.email_verified) return <Navigate to="/verify-email" replace />
   return children
 }
 
@@ -60,6 +68,7 @@ export default function App() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/verify-email" element={<VerifyEmailNoticePage />} />
       <Route
         path="/sites/:id/builder"
         element={

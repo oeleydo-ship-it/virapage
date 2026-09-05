@@ -36,6 +36,7 @@ class AuthController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => $data['password'],
+            'password_set_at' => now(),
         ]);
 
         event(new Registered($user));
@@ -122,6 +123,7 @@ class AuthController extends Controller
         $status = Password::reset($request->only('email', 'password', 'password_confirmation', 'token'), function (User $user, string $password) {
             $user->forceFill([
                 'password' => $password,
+                'password_set_at' => now(),
                 'remember_token' => Str::random(60),
             ])->save();
             $user->tokens()->delete();
@@ -133,7 +135,7 @@ class AuthController extends Controller
         return response()->json(['data' => ['ok' => true]]);
     }
 
-    public function verifyEmail(Request $request, int $id, string $hash): JsonResponse
+    public function verifyEmail(Request $request, int $id, string $hash): JsonResponse|RedirectResponse
     {
         $user = User::query()->findOrFail($id);
         if (! hash_equals($hash, sha1($user->getEmailForVerification()))) {
@@ -145,7 +147,16 @@ class AuthController extends Controller
             event(new Verified($user));
         }
 
-        return response()->json(['data' => ['verified' => true]]);
+        if ($request->expectsJson()) {
+            return response()->json(['data' => ['verified' => true]]);
+        }
+
+        // Opened straight from the email, in whatever browser that happens
+        // to be - not necessarily the one with the app session, so send it
+        // to the login screen rather than assuming a token is available.
+        $frontend = rtrim((string) config('uidesired.frontend_url', 'http://localhost:5174'), '/');
+
+        return redirect()->away($frontend.'/login?verified=1');
     }
 
     public function resendVerification(Request $request): JsonResponse

@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\V1\FunnelController;
 use App\Http\Controllers\Api\V1\FunnelExperimentController;
 use App\Http\Controllers\Api\V1\FunnelRenderController;
 use App\Http\Controllers\Api\V1\FunnelRenderStoreController;
+use App\Http\Controllers\Api\V1\FunnelStepRevisionController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\LivechatController;
 use App\Http\Controllers\Api\V1\MediaController;
@@ -167,10 +168,13 @@ Route::prefix('v1')->group(function () {
                     Route::post('/funnels', [FunnelController::class, 'store']);
                     Route::get('/funnels/analytics', [FunnelController::class, 'analytics']);
                     Route::get('/funnels/leads', [FunnelController::class, 'leads']);
+                    // A literal path, so it has to come before the {funnel} binding below.
+                    Route::post('/funnels/import', [FunnelController::class, 'import']);
                     Route::get('/funnels/{funnel}', [FunnelController::class, 'show']);
                     Route::patch('/funnels/{funnel}', [FunnelController::class, 'update']);
                     Route::delete('/funnels/{funnel}', [FunnelController::class, 'destroy']);
                     Route::post('/funnels/{funnel}/publish', [FunnelController::class, 'publish']);
+                    Route::get('/funnels/{funnel}/export', [FunnelController::class, 'export']);
                     Route::get('/funnels/{funnel}/render-payload', [FunnelRenderController::class, 'payload']);
                     Route::post('/funnels/{funnel}/pause', [FunnelController::class, 'pause']);
                     Route::post('/funnels/{funnel}/duplicate', [FunnelController::class, 'duplicate']);
@@ -181,6 +185,11 @@ Route::prefix('v1')->group(function () {
                     Route::delete('/funnels/{funnel}/steps/{funnelStep}', [FunnelController::class, 'deleteStep']);
                     Route::post('/funnels/{funnel}/connections', [FunnelController::class, 'connect']);
                     Route::delete('/funnels/{funnel}/connections/{funnelConnection}', [FunnelController::class, 'disconnect']);
+                    // A step's own version history - separate from the funnel's, so
+                    // restoring one step never touches what another looks like now.
+                    Route::get('/funnels/{funnel}/steps/{funnelStep}/revisions', [FunnelStepRevisionController::class, 'index']);
+                    Route::get('/funnels/{funnel}/steps/{funnelStep}/revisions/{revision}', [FunnelStepRevisionController::class, 'show']);
+                    Route::post('/funnels/{funnel}/steps/{funnelStep}/revisions/{revision}/restore', [FunnelStepRevisionController::class, 'restore']);
                 });
 
                 Route::get('/sites', [SiteController::class, 'index']);

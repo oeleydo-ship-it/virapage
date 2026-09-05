@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CreditCard, Plus, Trash2 } from 'lucide-react'
+import { Check, Copy, Plus, Search, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { Coupon, Product } from '@uidesired/types'
+import { MediaPicker } from '../components/MediaLibrary'
 import { couponsApi, ordersApi, paymentsApi, productsApi } from '../lib/endpoints'
 import { Badge, Button, Card, DataTable, EmptyState, Input, Label, PageHeader, Select } from '../ui/primitives'
 
@@ -37,6 +39,7 @@ function money(minor: number, currency: string): string {
 type Draft = {
   name: string
   description: string
+  image: string
   price: string
   currency: string
   type: 'one_time' | 'subscription'
@@ -50,6 +53,7 @@ function emptyDraft(currency: string): Draft {
   return {
     name: '',
     description: '',
+    image: '',
     price: '0.00',
     currency,
     type: 'one_time',
@@ -64,6 +68,7 @@ function draftFrom(product: Product): Draft {
   return {
     name: product.name,
     description: product.description || '',
+    image: product.image || '',
     price: toMajor(product.price),
     currency: product.currency,
     type: product.type,
@@ -74,161 +79,23 @@ function draftFrom(product: Product): Draft {
   }
 }
 
-function StripePanel() {
-  const qc = useQueryClient()
+/**
+ * A quiet nudge that Stripe still needs setting up, without the full panel:
+ * that configuration now lives in Settings → Payments, an account-level
+ * concern rather than something edited alongside the catalogue.
+ */
+function PaymentsHint() {
   const settings = useQuery({ queryKey: ['payments'], queryFn: paymentsApi.get })
-  const [secret, setSecret] = useState('')
-  const [webhook, setWebhook] = useState('')
-  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
-
-  const save = useMutation({
-    mutationFn: paymentsApi.update,
-    onSuccess: () => {
-      // Cleared so a key is never left sitting in the DOM after it is stored.
-      setSecret('')
-      setWebhook('')
-      setMessage({ text: 'Saved.', ok: true })
-      void qc.invalidateQueries({ queryKey: ['payments'] })
-    },
-    onError: (error: Error) => setMessage({ text: error.message, ok: false }),
-  })
-
-  const verify = useMutation({
-    mutationFn: paymentsApi.verify,
-    onSuccess: (result) => {
-      setMessage({ text: result.message, ok: result.ok })
-      void qc.invalidateQueries({ queryKey: ['payments'] })
-    },
-    onError: (error: Error) => setMessage({ text: error.message, ok: false }),
-  })
-
-  const disconnect = useMutation({
-    mutationFn: paymentsApi.disconnect,
-    onSuccess: () => {
-      setMessage({ text: 'Disconnected.', ok: true })
-      void qc.invalidateQueries({ queryKey: ['payments'] })
-    },
-  })
-
-  const data = settings.data
-  if (!data) return null
+  if (!settings.data || settings.data.connected) return null
 
   return (
-    <Card className="mb-6">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <CreditCard size={16} className="text-zinc-400" />
-          <h2 className="text-sm font-semibold">Your Stripe account</h2>
-        </div>
-        <div className="flex items-center gap-2">
-          {data.connected ? (
-            <Badge tone={data.verified_at ? 'success' : 'neutral'}>
-              {data.verified_at ? `Verified · ${data.mode}` : `Key stored · ${data.mode}`}
-            </Badge>
-          ) : (
-            <Badge tone="neutral">Not connected</Badge>
-          )}
-        </div>
-      </div>
-
-      <p className="mb-4 text-xs text-zinc-500">
-        Payments go straight to your own Stripe account. We never hold the money, and your keys are stored encrypted
-        and never shown again.
+    <Card className="mb-6 flex items-center justify-between gap-3">
+      <p className="text-xs text-zinc-500">
+        Connect Stripe to start accepting payments for what you sell here.
       </p>
-
-      <div className="grid gap-3 md:grid-cols-2">
-        <div>
-          <Label>Secret key</Label>
-          <Input
-            type="password"
-            autoComplete="off"
-            placeholder={data.connected ? `Stored · ends ${data.secret_hint}` : 'sk_live_… or sk_test_…'}
-            value={secret}
-            onChange={(event) => setSecret(event.target.value)}
-          />
-          <p className="mt-1 text-[11px] text-zinc-500">Leave blank to keep the key you already saved.</p>
-        </div>
-        <div>
-          <Label>Webhook signing secret</Label>
-          <Input
-            type="password"
-            autoComplete="off"
-            placeholder={data.webhook_set ? 'Stored' : 'whsec_…'}
-            value={webhook}
-            onChange={(event) => setWebhook(event.target.value)}
-          />
-          <p className="mt-1 text-[11px] text-zinc-500">From the webhook you add in Stripe, below.</p>
-        </div>
-      </div>
-
-      <div className="mt-3">
-        <Label>Send Stripe webhooks here</Label>
-        {/* Read-only: this is the address to paste into Stripe, and it exists
-            before any key has been entered. */}
-        <Input readOnly value={data.webhook_url} onFocus={(event) => event.currentTarget.select()} />
-        <p className="mt-1 text-[11px] text-zinc-500">
-          In Stripe: Developers → Webhooks → Add endpoint, and send <code>checkout.session.completed</code>. Orders
-          stay unpaid until this is set up.
-        </p>
-      </div>
-
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        <div>
-          <Label>Default currency</Label>
-          <Select
-            value={data.currency}
-            onChange={(event) => save.mutate({ currency: event.target.value })}
-          >
-            {CURRENCIES.map((code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="flex items-end">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={data.enabled}
-              onChange={(event) => save.mutate({ enabled: event.target.checked })}
-            />
-            Accept payments
-          </label>
-        </div>
-      </div>
-
-      {data.last_error ? <p className="mt-3 text-xs text-red-600">{data.last_error}</p> : null}
-      {data.secret_unreadable ? (
-        <p className="mt-3 text-xs text-amber-600">
-          The stored key can no longer be read — this happens when APP_KEY changes. Enter it again.
-        </p>
-      ) : null}
-      {message ? (
-        <p className={`mt-3 text-xs ${message.ok ? 'text-emerald-600' : 'text-red-600'}`}>{message.text}</p>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button
-          onClick={() =>
-            save.mutate({
-              ...(secret ? { secret_key: secret } : {}),
-              ...(webhook ? { webhook_secret: webhook } : {}),
-            })
-          }
-          disabled={save.isPending || (!secret && !webhook)}
-        >
-          {save.isPending ? 'Saving…' : 'Save keys'}
-        </Button>
-        <Button variant="outline" onClick={() => verify.mutate()} disabled={verify.isPending || !data.connected}>
-          {verify.isPending ? 'Checking…' : 'Test connection'}
-        </Button>
-        {data.connected ? (
-          <Button variant="ghost" onClick={() => disconnect.mutate()} disabled={disconnect.isPending}>
-            Disconnect
-          </Button>
-        ) : null}
-      </div>
+      <Link to="/settings?tab=payments">
+        <Button variant="outline">Connect Stripe in Settings</Button>
+      </Link>
     </Card>
   )
 }
@@ -516,7 +383,20 @@ export function ProductsPage() {
   const [tab, setTab] = useState<'products' | 'orders' | 'coupons'>('products')
   const qc = useQueryClient()
   const settings = useQuery({ queryKey: ['payments'], queryFn: paymentsApi.get })
-  const products = useQuery({ queryKey: ['products'], queryFn: () => productsApi.list() })
+
+  const [status, setStatus] = useState('')
+  const [q, setQ] = useState('')
+  // Debounced so a search is one request per pause, not one per keystroke.
+  const [search, setSearch] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(q.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [q])
+  const products = useQuery({
+    queryKey: ['products', status, search],
+    queryFn: () => productsApi.list({ status: status || undefined, q: search || undefined }),
+    placeholderData: (previous) => previous,
+  })
 
   const [editing, setEditing] = useState<Product | null>(null)
   const [draft, setDraft] = useState<Draft>(emptyDraft('USD'))
@@ -545,6 +425,7 @@ export function ProductsPage() {
   const body = () => ({
     name: draft.name,
     description: draft.description || null,
+    image: draft.image || null,
     price: toMinor(draft.price),
     currency: draft.currency,
     type: draft.type,
@@ -568,7 +449,25 @@ export function ProductsPage() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['products'] }),
   })
 
+  const duplicate = useMutation({
+    mutationFn: (product: Product) =>
+      productsApi.create({
+        name: `${product.name} (copy)`,
+        description: product.description,
+        image: product.image,
+        price: product.price,
+        currency: product.currency,
+        type: product.type,
+        interval: product.interval,
+        status: 'draft',
+        inventory: product.inventory,
+        success_url: product.success_url,
+      }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['products'] }),
+  })
+
   const list = products.data || []
+  const filtered = Boolean(status || search)
 
   return (
     <div>
@@ -601,12 +500,37 @@ export function ProductsPage() {
 
       {tab === 'coupons' ? <CouponsTab /> : null}
 
-      {tab === 'products' ? <StripePanel /> : null}
+      {tab === 'products' ? <PaymentsHint /> : null}
+
+      {tab === 'products' ? (
+        <div className="mb-4 flex flex-wrap items-end gap-2">
+          <div className="max-w-xs flex-1">
+            <Label>Search</Label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 text-zinc-400" size={14} />
+              <Input className="pl-8" placeholder="Product name" value={q} onChange={(e) => setQ(e.target.value)} />
+            </div>
+          </div>
+          <div className="w-44">
+            <Label>Status</Label>
+            <Select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <option value="">Every status</option>
+              <option value="draft">Draft</option>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </Select>
+          </div>
+        </div>
+      ) : null}
 
       {tab === 'products' && open ? (
         <Card className="mb-6">
           <h2 className="mb-3 text-sm font-semibold">{editing ? `Edit ${editing.name}` : 'New product'}</h2>
           <div className="grid gap-3 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Label>Image</Label>
+              <MediaPicker value={draft.image} onChange={(url) => setDraft({ ...draft, image: url })} kind="image" />
+            </div>
             <div>
               <Label>Name</Label>
               <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
@@ -703,8 +627,12 @@ export function ProductsPage() {
 
       {tab !== 'products' ? null : list.length === 0 ? (
         <EmptyState
-          title="Nothing for sale yet"
-          description="Add a product, then drop a Buy button onto a page or a funnel step."
+          title={filtered ? 'Nothing matches' : 'Nothing for sale yet'}
+          description={
+            filtered
+              ? 'No product matches that search.'
+              : 'Add a product, then drop a Buy button onto a page or a funnel step.'
+          }
         >
           <Button onClick={startNew}>New product</Button>
         </EmptyState>
@@ -714,12 +642,19 @@ export function ProductsPage() {
             {list.map((product) => (
               <tr key={product.id} className="border-t border-zinc-100">
                 <td className="px-3 py-2">
-                  <button type="button" className="text-left font-medium hover:underline" onClick={() => edit(product)}>
-                    {product.name}
+                  <button type="button" className="flex items-center gap-2 text-left font-medium hover:underline" onClick={() => edit(product)}>
+                    {product.image ? (
+                      <img src={product.image} alt="" className="h-8 w-8 rounded object-cover" />
+                    ) : (
+                      <span className="h-8 w-8 rounded bg-zinc-100" />
+                    )}
+                    <span>
+                      {product.name}
+                      <div className="text-[11px] font-normal text-zinc-500">
+                        {product.type === 'subscription' ? `Every ${product.interval}` : 'One-off'} · id {product.id}
+                      </div>
+                    </span>
                   </button>
-                  <div className="text-[11px] text-zinc-500">
-                    {product.type === 'subscription' ? `Every ${product.interval}` : 'One-off'} · id {product.id}
-                  </div>
                 </td>
                 <td className="px-3 py-2">{money(product.price, product.currency)}</td>
                 <td className="px-3 py-2">
@@ -737,6 +672,15 @@ export function ProductsPage() {
                   {product.inventory === null || product.inventory === undefined ? 'Unlimited' : product.inventory}
                 </td>
                 <td className="px-3 py-2 text-right">
+                  <button
+                    type="button"
+                    title="Duplicate product"
+                    className="p-1 text-zinc-400 hover:text-zinc-700"
+                    disabled={duplicate.isPending}
+                    onClick={() => duplicate.mutate(product)}
+                  >
+                    <Copy size={14} />
+                  </button>
                   <button
                     type="button"
                     title="Delete product"

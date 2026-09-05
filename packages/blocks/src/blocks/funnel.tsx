@@ -8,8 +8,8 @@
  */
 import { useState, type FormEvent } from 'react'
 import { EditableText, editOf } from '../editable'
-import { Body, Button, SectionHead, SectionShell, bool, items, str, type Props } from '../primitives'
-import { headFields, repeater, schema, select, text, textarea, toggle } from '../schema'
+import { Body, Button, SectionHead, SectionShell, bool, items, num, str, type Props } from '../primitives'
+import { headFields, number, repeater, schema, select, text, textarea, toggle } from '../schema'
 import { defineBlock } from '../types'
 
 /** What publishing wrote into the page about this step. */
@@ -232,6 +232,210 @@ export const funnelOptin = defineBlock({
                   <EditableText edit={edit} path={['consentText']} value={consentText} as="span" multiline />
                 </label>
               ) : null}
+
+              {status === 'error' ? (
+                <p className="ud-small" role="alert" style={{ marginTop: 10, color: '#b91c1c' }}>
+                  {message}
+                </p>
+              ) : null}
+
+              {str(props.footnote) || edit ? (
+                <EditableText
+                  edit={edit}
+                  path={['footnote']}
+                  value={str(props.footnote)}
+                  as="p"
+                  className="ud-small"
+                  style={{ marginTop: 10, opacity: 0.75 }}
+                  placeholder="Small print"
+                />
+              ) : null}
+            </form>
+          </Body>
+        )}
+      </SectionShell>
+    )
+  },
+  settings: null,
+})
+
+/* ------------------------------------------------------------- funnel.quiz */
+
+type QuizQuestion = { question: string; options: { label: string }[]; correctIndex: number }
+
+function quizQuestions(value: unknown): QuizQuestion[] {
+  return items(value, []).map((entry) => {
+    const row = entry as Props
+    return {
+      question: str(row.question),
+      options: items(row.options, []).map((option) => ({ label: str((option as Props).label) })),
+      correctIndex: num(row.correctIndex, -1),
+    }
+  })
+}
+
+export const funnelQuiz = defineBlock({
+  type: 'funnel.quiz',
+  version: 1,
+  category: 'form',
+  label: 'Funnel quiz',
+  icon: 'HelpCircle',
+  defaultProps: {
+    eyebrow: 'Quick quiz',
+    heading: 'Find what fits you best',
+    description: 'Answer a few questions and we will point you the right way.',
+    questions: [
+      {
+        question: 'What matters most to you?',
+        options: [{ label: 'Speed' }, { label: 'Price' }, { label: 'Support' }],
+        correctIndex: -1,
+      },
+    ],
+    buttonLabel: 'See my result',
+    resultHeading: 'Thanks for answering',
+    resultDescription: 'Here is what we recommend based on your answers.',
+    footnote: '',
+  },
+  schema: schema(
+    ...headFields,
+    repeater(
+      'questions',
+      'Questions',
+      [
+        text('question', 'Question'),
+        repeater('options', 'Options', [text('label', 'Option')], { itemLabel: 'Option', itemDefaults: { label: 'New option' } }),
+        number('correctIndex', 'Correct option (0-based, -1 for no right answer)', 'content'),
+      ],
+      { itemLabel: 'Question', itemDefaults: { question: 'New question', options: [{ label: 'Option A' }, { label: 'Option B' }], correctIndex: -1 } },
+    ),
+    text('buttonLabel', 'Button label'),
+    text('resultHeading', 'Result heading'),
+    textarea('resultDescription', 'Result description'),
+    text('footnote', 'Small print'),
+  ),
+  component: function FunnelQuiz(props) {
+    const edit = editOf(props)
+    const questions = quizQuestions(props.questions)
+    const [answers, setAnswers] = useState<Record<number, number>>({})
+    const [status, setStatus] = useState<'idle' | 'sending' | 'ok' | 'error'>('idle')
+    const [message, setMessage] = useState('')
+
+    const answered = questions.every((_, index) => answers[index] !== undefined)
+
+    async function onSubmit(event: FormEvent<HTMLFormElement>) {
+      event.preventDefault()
+      if (status === 'sending' || !answered) return
+
+      const context = funnelContext()
+      if (!context) {
+        setStatus('error')
+        setMessage('This quiz works once the funnel is published.')
+        return
+      }
+
+      // Scored only against questions that have a right answer set; a quiz
+      // used purely to route people (no correct/incorrect) scores nothing.
+      const scoredCount = questions.filter((question) => question.correctIndex >= 0).length
+      const score = questions.reduce(
+        (total, question, index) => total + (question.correctIndex >= 0 && answers[index] === question.correctIndex ? 1 : 0),
+        0,
+      )
+
+      setStatus('sending')
+      setMessage('')
+      try {
+        const response = await fetch(
+          `/api/v1/public/funnels/${context.funnel_id}/steps/${context.step_id}/events`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+            body: JSON.stringify({
+              event_type: 'conversion',
+              consent: 'essential',
+              variant: context.variant || undefined,
+              url: typeof window === 'undefined' ? undefined : window.location.href,
+              metadata: {
+                quiz: {
+                  score,
+                  scored: scoredCount,
+                  total: questions.length,
+                  answers: questions.map((_, index) => answers[index] ?? null),
+                },
+              },
+            }),
+          },
+        )
+        if (!response.ok) throw new Error('That did not go through. Please try again.')
+        const body = (await response.json()) as { data?: { next_step?: string | null } }
+
+        setStatus('ok')
+        setMessage(str(props.resultDescription, 'Here is what we recommend based on your answers.'))
+
+        const next = body?.data?.next_step || context.next_step
+        if (next && typeof window !== 'undefined') {
+          window.location.assign(`/f/${context.funnel_slug}/${next}`)
+        }
+      } catch (error) {
+        setStatus('error')
+        setMessage(error instanceof Error ? error.message : 'That did not go through. Please try again.')
+      }
+    }
+
+    return (
+      <SectionShell props={props} tone="default" align="center">
+        <SectionHead props={props} defaultHeading="Find what fits you best" />
+
+        {status === 'ok' && !edit ? (
+          <Body style={{ maxWidth: 520, margin: '0 auto', textAlign: 'center' }}>
+            <EditableText
+              edit={edit}
+              path={['resultHeading']}
+              value={str(props.resultHeading, 'Thanks for answering')}
+              as="h3"
+              className="ud-h4"
+            />
+            <p className="ud-lead" role="status" style={{ marginTop: 8 }}>
+              {message}
+            </p>
+          </Body>
+        ) : (
+          <Body style={{ maxWidth: 620, margin: '0 auto' }}>
+            <form onSubmit={onSubmit}>
+              <div style={{ display: 'grid', gap: 22 }}>
+                {questions.map((question, qIndex) => (
+                  <fieldset key={qIndex} style={{ border: 0, padding: 0, margin: 0 }}>
+                    <legend className="ud-small" style={{ fontWeight: 600, marginBottom: 8 }}>
+                      {qIndex + 1}. {question.question || 'Untitled question'}
+                    </legend>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {question.options.map((option, oIndex) => (
+                        <label key={oIndex} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <input
+                            type="radio"
+                            name={`question-${qIndex}`}
+                            required
+                            checked={answers[qIndex] === oIndex}
+                            onChange={() => setAnswers((current) => ({ ...current, [qIndex]: oIndex }))}
+                          />
+                          <span className="ud-small">{option.label || `Option ${oIndex + 1}`}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ))}
+              </div>
+
+              <div style={{ marginTop: 20 }}>
+                <Button type="submit" disabled={!answered && !edit}>
+                  <EditableText
+                    edit={edit}
+                    path={['buttonLabel']}
+                    value={str(props.buttonLabel, 'See my result')}
+                    as="span"
+                    placeholder="Button label"
+                  />
+                </Button>
+              </div>
 
               {status === 'error' ? (
                 <p className="ud-small" role="alert" style={{ marginTop: 10, color: '#b91c1c' }}>

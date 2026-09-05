@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { getWorkspaceId, setSession, getToken } from '../lib/api'
 import { authApi } from '../lib/auth'
 import { ProfileCard, PasswordCard, SessionsCard } from '../components/ProfilePanels'
+import { PaymentSettings } from '../components/PaymentSettings'
 import { billingApi, workspacesApi } from '../lib/endpoints'
 import { Badge, Button, Card, Input, Label, PageHeader, TabPanel, Tabs } from '../ui/primitives'
 
@@ -14,7 +16,10 @@ export function SettingsPage() {
   // for the moment between mount and the workspace list arriving.
   const [nameDraft, setNameDraft] = useState<string | null>(null)
   const [newWorkspace, setNewWorkspace] = useState('')
-  const [tab, setTab] = useState('workspace')
+  const [searchParams] = useSearchParams()
+  // A link from elsewhere (the Products page's "connect Stripe" nudge) can
+  // land straight on a tab instead of always opening on Workspace.
+  const [tab, setTab] = useState(searchParams.get('tab') || 'workspace')
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -56,6 +61,7 @@ export function SettingsPage() {
         onChange={setTab}
         items={[
           { id: 'workspace', label: 'Workspace' },
+          { id: 'payments', label: 'Payments' },
           { id: 'profile', label: 'Profile' },
           { id: 'security', label: 'Security' },
           { id: 'plan', label: 'Plan' },
@@ -94,6 +100,10 @@ export function SettingsPage() {
             Create and switch
           </Button>
         </Card>
+      </TabPanel>
+
+      <TabPanel id="payments" active={tab === 'payments'}>
+        <PaymentSettings />
       </TabPanel>
 
       <TabPanel id="profile" active={tab === 'profile'}>

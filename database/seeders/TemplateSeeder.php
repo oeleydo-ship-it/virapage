@@ -12,6 +12,16 @@ class TemplateSeeder extends Seeder
     public function run(): void
     {
         $this->publish(
+            category: ['slug' => 'agency', 'name' => 'Agency'],
+            slug: 'forma',
+            name: 'Forma',
+            description: 'A warm editorial studio: sculptural artwork, serif headlines, five pages, and reusable blocks with selectable layouts.',
+            featured: true,
+            theme: TemplateForma::theme(),
+            pages: TemplateForma::pages(),
+        );
+
+        $this->publish(
             category: ['slug' => 'restaurant', 'name' => 'Restaurant'],
             slug: 'restaurant',
             name: 'Restaurant',
@@ -351,6 +361,16 @@ class TemplateSeeder extends Seeder
             featured: true,
             theme: TemplateAperture::theme(),
             pages: TemplateAperture::pages(),
+        );
+
+        $this->publish(
+            category: ['slug' => 'agency', 'name' => 'Agency'],
+            slug: 'kirki',
+            name: 'Kirki',
+            description: 'A revenue-consulting agency kit: an off-white sheet with tight 600-weight Inter headlines, one lime-yellow accent carrying every button and the footer\'s contact band, a white star-rating pill opening every hero, heavily rounded 16-20px cards and photography, case-study rows, an industries grid, an awards timeline and a team grid, across four fully editable pages.',
+            featured: true,
+            theme: TemplateKirki::theme(),
+            pages: TemplateKirki::pages(),
         );
     }
 

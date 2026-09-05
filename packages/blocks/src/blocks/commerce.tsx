@@ -9,7 +9,7 @@
 import { useState, type FormEvent } from 'react'
 import { EditableText, editOf } from '../editable'
 import { Body, Button, SectionShell, bool, str } from '../primitives'
-import { number, schema, select, text, textarea, toggle } from '../schema'
+import { field, number, schema, select, text, textarea, toggle } from '../schema'
 import { defineBlock } from '../types'
 
 /**
@@ -44,6 +44,7 @@ export const commerceBuy = defineBlock({
     currency: 'USD',
     buttonLabel: 'Buy now',
     askForEmail: true,
+    allowCoupon: false,
     footnote: 'Secure checkout by Stripe.',
     align: 'center',
   },
@@ -55,6 +56,9 @@ export const commerceBuy = defineBlock({
     text('currency', 'Currency code'),
     text('buttonLabel', 'Button label'),
     toggle('askForEmail', 'Ask for an email first'),
+    field('allowCoupon', 'toggle', 'Let the buyer enter a discount code', 'content', {
+      help: 'Only codes created under Products → Coupons are accepted.',
+    }),
     text('footnote', 'Small print'),
     select('align', 'Alignment', [['center', 'Centred'], ['left', 'Left']], 'layout'),
   ),
@@ -64,6 +68,7 @@ export const commerceBuy = defineBlock({
     const [message, setMessage] = useState('')
     const productId = str(props.productId).trim()
     const askForEmail = bool(props.askForEmail, true)
+    const allowCoupon = bool(props.allowCoupon, false)
     const left = str(props.align, 'center') === 'left'
 
     async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -76,7 +81,9 @@ export const commerceBuy = defineBlock({
         return
       }
 
-      const email = str(new FormData(event.currentTarget).get('email')).trim()
+      const form = new FormData(event.currentTarget)
+      const email = str(form.get('email')).trim()
+      const coupon = str(form.get('coupon')).trim()
       setStatus('sending')
       setMessage('')
       try {
@@ -85,6 +92,7 @@ export const commerceBuy = defineBlock({
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({
             email: email || undefined,
+            coupon: coupon || undefined,
             success_url: typeof window === 'undefined' ? undefined : window.location.href,
             cancel_url: typeof window === 'undefined' ? undefined : window.location.href,
           }),
@@ -140,6 +148,17 @@ export const commerceBuy = defineBlock({
                 autoComplete="email"
                 className="ud-input"
                 placeholder="Email for the receipt"
+                style={{ maxWidth: 320, width: '100%' }}
+              />
+            ) : null}
+
+            {allowCoupon ? (
+              <input
+                name="coupon"
+                type="text"
+                autoComplete="off"
+                className="ud-input"
+                placeholder="Discount code (optional)"
                 style={{ maxWidth: 320, width: '100%' }}
               />
             ) : null}

@@ -1,9 +1,10 @@
 import { useEffect, useId, useMemo, useState, type FormEvent, type InputHTMLAttributes, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { authApi, persistAuth } from '../lib/auth'
-import { http, setSession } from '../lib/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { authApi, logoutAndClear, persistAuth } from '../lib/auth'
+import { getToken, http, setSession } from '../lib/api'
 import { useBranding } from '../lib/useBranding'
-import type { Workspace } from '@uidesired/types'
+import type { User, Workspace } from '@uidesired/types'
 
 /*
  * The auth screens are white in both themes. `.auth-shell` marks this subtree
@@ -77,6 +78,19 @@ function ErrorNote({ children }: { children: ReactNode }) {
       className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700"
     >
       <AlertIcon />
+      <span>{children}</span>
+    </div>
+  )
+}
+
+/** Inline success banner, styled to match ErrorNote. */
+function SuccessNote({ children }: { children: ReactNode }) {
+  return (
+    <div
+      role="status"
+      className="flex items-start gap-2 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2.5 text-sm text-teal-800"
+    >
+      <CheckIcon />
       <span>{children}</span>
     </div>
   )
@@ -339,6 +353,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState(params.get('google_error') || '')
   const [pending, setPending] = useState(false)
+  const justVerified = params.get('verified') === '1'
 
   return (
     <AuthShell
@@ -354,6 +369,7 @@ export function LoginPage() {
       }
     >
       <GoogleAuthBlock label="Continue with Google" />
+      {justVerified ? <div className="mb-4"><SuccessNote>Your email is verified — sign in to continue.</SuccessNote></div> : null}
       <form
         className="space-y-4"
         onSubmit={async (e: FormEvent) => {
@@ -439,7 +455,7 @@ export function RegisterPage() {
           try {
             const payload = await authApi.register({ name, email, password, password_confirmation })
             persistAuth(payload)
-            navigate('/')
+            navigate('/verify-email')
           } catch (err) {
             setError(err instanceof Error ? err.message : 'Unable to register')
           } finally {
@@ -672,6 +688,101 @@ export function AuthCallbackPage() {
           Please wait a moment.
         </div>
       )}
+    </AuthShell>
+  )
+}
+
+export function VerifyEmailNoticePage() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [sendState, setSendState] = useState<'idle' | 'sending' | 'sent'>('idle')
+  const [checking, setChecking] = useState(false)
+  const [error, setError] = useState('')
+
+  const hasToken = Boolean(getToken())
+  const { data: user } = useQuery<User>({
+    queryKey: ['me'],
+    queryFn: authApi.user,
+    enabled: hasToken,
+  })
+
+  useEffect(() => {
+    if (!hasToken) navigate('/login', { replace: true })
+  }, [hasToken, navigate])
+
+  useEffect(() => {
+    if (user?.email_verified) navigate('/', { replace: true })
+  }, [user, navigate])
+
+  async function resend() {
+    setError('')
+    setSendState('sending')
+    try {
+      await authApi.resendVerification()
+      setSendState('sent')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to send the verification email')
+      setSendState('idle')
+    }
+  }
+
+  async function checkAgain() {
+    setError('')
+    setChecking(true)
+    try {
+      const refreshed = await queryClient.fetchQuery<User>({ queryKey: ['me'], queryFn: authApi.user })
+      if (refreshed?.email_verified) {
+        navigate('/', { replace: true })
+      } else {
+        setError('Still not verified. Open the link from the email we sent, then try again.')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to check your verification status')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <AuthShell
+      title="Verify your email"
+      subtitle={user?.email ? `We sent a confirmation link to ${user.email}.` : 'We sent you a confirmation link.'}
+      footer={
+        <button
+          type="button"
+          onClick={() => void logoutAndClear().then(() => navigate('/login', { replace: true }))}
+          className="font-semibold text-teal-600 transition hover:text-teal-700"
+        >
+          Sign out
+        </button>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-sm leading-relaxed text-slate-500">
+          Click the link in that email to activate your account, then come back here. Didn’t get it? Check your spam
+          folder, or send it again below.
+        </p>
+        {sendState === 'sent' ? <SuccessNote>Verification email sent — check your inbox.</SuccessNote> : null}
+        {error ? <ErrorNote>{error}</ErrorNote> : null}
+        <button
+          type="button"
+          disabled={checking}
+          onClick={() => void checkAgain()}
+          className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-teal-700 focus:outline-none focus:ring-4 focus:ring-teal-500/25 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {checking ? <Spinner /> : null}
+          {checking ? 'Checking…' : "I've verified — continue"}
+        </button>
+        <button
+          type="button"
+          disabled={sendState === 'sending'}
+          onClick={() => void resend()}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 focus:outline-none focus:ring-4 focus:ring-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {sendState === 'sending' ? <Spinner /> : null}
+          {sendState === 'sending' ? 'Sending…' : 'Resend verification email'}
+        </button>
+      </div>
     </AuthShell>
   )
 }

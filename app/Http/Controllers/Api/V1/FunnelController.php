@@ -35,6 +35,7 @@ class FunnelController extends Controller
             'type' => ['nullable', 'string', 'max:60'],
             'goal' => ['nullable', 'string', 'max:60'],
             'template' => ['nullable', 'in:lead_magnet,consultation,product_launch'],
+            'product_id' => ['nullable', 'integer'],
         ]);
         abort_unless($workspace->workspace, 422, 'Select a workspace first.');
         return (new FunnelResource($funnels->create($workspace->workspace, $request->user(), $data)))->response()->setStatusCode(201);
@@ -72,7 +73,42 @@ class FunnelController extends Controller
     {
         $this->authorize('update', $funnel);
         $content = $request->validate(['schemaVersion' => ['required', 'integer', 'in:1'], 'sections' => ['required', 'array']]);
-        return response()->json(['data' => $funnels->saveStepContent($funnel, $funnelStep, $content)]);
+        return response()->json(['data' => $funnels->saveStepContent($funnel, $funnelStep, $content, $request->user())]);
+    }
+
+    public function export(Funnel $funnel, FunnelService $funnels): JsonResponse
+    {
+        $this->authorize('view', $funnel);
+
+        return response()->json(['data' => $funnels->export($funnel)]);
+    }
+
+    public function import(Request $request, FunnelService $funnels, CurrentWorkspace $workspace): JsonResponse
+    {
+        abort_unless($workspace->workspace, 422, 'Select a workspace first.');
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'type' => ['nullable', 'string', 'max:60'],
+            'goal' => ['nullable', 'string', 'max:60'],
+            'settings' => ['nullable', 'array'],
+            'steps' => ['required', 'array', 'min:1'],
+            'steps.*.name' => ['required', 'string', 'max:255'],
+            'steps.*.slug' => ['nullable', 'string', 'max:160'],
+            'steps.*.type' => ['nullable', 'string', 'max:60'],
+            'steps.*.canvas_x' => ['nullable', 'integer'],
+            'steps.*.canvas_y' => ['nullable', 'integer'],
+            'steps.*.settings' => ['nullable', 'array'],
+            'steps.*.content' => ['nullable', 'array'],
+            'connections' => ['nullable', 'array'],
+            'connections.*.source_slug' => ['required_with:connections', 'string'],
+            'connections.*.target_slug' => ['required_with:connections', 'string'],
+            'connections.*.connection_type' => ['nullable', 'string', 'max:40'],
+            'connections.*.conditions' => ['nullable', 'array'],
+            'connections.*.priority' => ['nullable', 'integer'],
+        ]);
+
+        return (new FunnelResource($funnels->import($workspace->workspace, $request->user(), $data)))->response()->setStatusCode(201);
     }
 
     public function deleteStep(Funnel $funnel, FunnelStep $funnelStep, FunnelService $funnels): JsonResponse { $this->authorize('update', $funnel); abort_unless($funnelStep->funnel_id === $funnel->id, 404); $funnelStep->page?->update(['status' => 'hidden', 'published_revision_id' => null]); $funnelStep->delete(); return response()->json(['data' => ['ok' => true]]); }

@@ -44,9 +44,10 @@ function stepTypes(array $funnel, string $slug): array
 it('puts a real form on the step that is meant to collect details', function () {
     ['funnel' => $funnel] = optinFunnel();
 
-    // The lead step has the opt-in; the landing step is still a landing page.
+    // The lead step has the opt-in; the landing step is a full landing page -
+    // hero, proof, and a close - not a single placeholder block.
     expect(stepTypes($funnel, 'capture'))->toBe(['funnel.optin']);
-    expect(stepTypes($funnel, 'start'))->toBe(['hero.centered']);
+    expect(stepTypes($funnel, 'start'))->toBe(['hero.saas', 'features.cards', 'testimonials.cards', 'cta.simple', 'footer.simple']);
 });
 
 it('asks a qualification step for a little more', function () {

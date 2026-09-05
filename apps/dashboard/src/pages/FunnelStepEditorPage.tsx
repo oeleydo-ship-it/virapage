@@ -11,21 +11,26 @@ import {
   Copy,
   Eye,
   EyeOff,
+  History,
   Monitor,
   PanelLeft,
   PanelLeftClose,
   PanelRight,
   PanelRightClose,
   Plus,
+  Redo2,
   Rocket,
   Trash2,
+  Undo2,
 } from 'lucide-react'
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useState, type CSSProperties } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { BlockPalette } from '../components/BlockPalette'
 import { FieldControl, fieldVisible } from '../components/FieldControls'
-import { funnelsApi } from '../lib/endpoints'
+import { FunnelStepHistoryPanel } from '../components/FunnelStepHistoryPanel'
+import { funnelsApi, productsApi } from '../lib/endpoints'
 import { standaloneFunnelUrl } from '../lib/siteUrls'
+import { useHistoryStore } from '../stores/historyStore'
 import { Button } from '../ui/primitives'
 import { publishFunnelWithRenders } from '@/lib/publishSite'
 
@@ -66,6 +71,7 @@ export function FunnelStepEditorPage() {
   const { id, stepId } = useParams()
   const qc = useQueryClient()
   const funnel = useQuery({ queryKey: ['funnel', id], queryFn: () => funnelsApi.get(id!) })
+  const products = useQuery({ queryKey: ['products'], queryFn: () => productsApi.list() })
   const step = funnel.data?.steps?.find((item) => String(item.id) === stepId)
   const [content, setContent] = useState<PageContent>({ schemaVersion: 1, sections: [] })
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -73,13 +79,23 @@ export function FunnelStepEditorPage() {
   const [dirty, setDirty] = useState(false)
   const [leftOpen, setLeftOpen] = useState(() => readPanel('ud-funnel-editor-left'))
   const [rightOpen, setRightOpen] = useState(() => readPanel('ud-funnel-editor-right'))
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const pushHistory = useHistoryStore((s) => s.push)
+  const undoHistory = useHistoryStore((s) => s.undo)
+  const redoHistory = useHistoryStore((s) => s.redo)
+  const resetHistory = useHistoryStore((s) => s.reset)
+  const canUndo = useHistoryStore((s) => s.past.length > 0)
+  const canRedo = useHistoryStore((s) => s.future.length > 0)
 
   useEffect(() => {
     if (step) {
       setContent(step.draft_content || { schemaVersion: 1, sections: [] })
       setDirty(false)
       setSelectedId(null)
+      setHistoryOpen(false)
+      resetHistory()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step?.id])
 
   useEffect(() => {
@@ -97,6 +113,7 @@ export function FunnelStepEditorPage() {
       qc.setQueryData(['funnel', id], (current: typeof funnel.data) =>
         current ? { ...current, steps: current.steps?.map((item) => (item.id === saved.id ? saved : item)) } : current,
       )
+      void qc.invalidateQueries({ queryKey: ['funnel-step-revisions', id, stepId] })
     },
   })
   const [renderError, setRenderError] = useState<string | null>(null)
@@ -113,12 +130,47 @@ export function FunnelStepEditorPage() {
       // missing. Refetch instead, so the cache holds a funnel.
       setRenderError(result.renderError ?? null)
       void qc.invalidateQueries({ queryKey: ['funnel', id] })
+      void qc.invalidateQueries({ queryKey: ['funnel-step-revisions', id, stepId] })
     },
   })
   const update = (sections: PageSection[]) => {
     setContent({ schemaVersion: 1, sections })
     setDirty(true)
   }
+  // Adding, deleting, duplicating, reordering, and hiding a block are each one
+  // undo step. A field edit is not - typing a heading would otherwise fill the
+  // undo stack with one entry per keystroke, so those still go through
+  // `update`/`alter` directly, with no history push.
+  const commit = (sections: PageSection[]) => {
+    pushHistory(content)
+    update(sections)
+  }
+  const applyUndo = useCallback(() => {
+    const snapshot = undoHistory(content)
+    if (snapshot) {
+      setContent(snapshot)
+      setDirty(true)
+    }
+  }, [content, undoHistory])
+  const applyRedo = useCallback(() => {
+    const snapshot = redoHistory(content)
+    if (snapshot) {
+      setContent(snapshot)
+      setDirty(true)
+    }
+  }, [content, redoHistory])
+  // Restoring already saved the content on the server as a new revision, so
+  // the editor just needs to catch up - nothing left to save, no history push.
+  const applyRestore = useCallback(
+    (sections: PageSection[]) => {
+      setContent({ schemaVersion: 1, sections })
+      setDirty(false)
+      resetHistory()
+      setHistoryOpen(false)
+      void qc.invalidateQueries({ queryKey: ['funnel', id] })
+    },
+    [id, qc, resetHistory],
+  )
   const selected = content.sections.find((section) => section.id === selectedId)
   const def = selected ? getBlock(selected.type) : undefined
   const fields = (def?.schema.fields || []).filter((field) => selected && fieldVisible(field, selected.props))
@@ -141,7 +193,7 @@ export function FunnelStepEditorPage() {
       hidden: false,
       props: structuredClone(block.defaultProps),
     }
-    update([...content.sections, section])
+    commit([...content.sections, section])
     setSelectedId(section.id)
   }
   const alter = (idToChange: string, fn: (section: PageSection) => PageSection) =>
@@ -151,8 +203,38 @@ export function FunnelStepEditorPage() {
     const target = index + delta
     if (target < 0 || target >= next.length) return
     ;[next[index], next[target]] = [next[target], next[index]]
-    update(next)
+    commit(next)
   }
+  const deleteSection = (sectionId: string) => {
+    commit(content.sections.filter((item) => item.id !== sectionId))
+    setSelectedId(null)
+  }
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null
+      const typing =
+        !!target &&
+        (target.isContentEditable ||
+          ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+          target.closest('[contenteditable="true"]') !== null)
+      // While inline editing (or in any form control), the browser owns the
+      // keyboard: Cmd+Z must undo typing, not roll back the page.
+      if (typing) return
+
+      const meta = event.metaKey || event.ctrlKey
+      if (meta && event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) applyRedo()
+        else applyUndo()
+      } else if (meta && event.key.toLowerCase() === 'y') {
+        event.preventDefault()
+        applyRedo()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [applyRedo, applyUndo])
 
   if (funnel.isLoading)
     return <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-400">Loading funnel editor…</div>
@@ -171,6 +253,34 @@ export function FunnelStepEditorPage() {
           <div>
             <div className="text-sm font-medium text-white">{funnel.data?.name}</div>
             <div className="text-xs text-zinc-500">{step.name} · standalone landing page</div>
+          </div>
+          <div className="flex overflow-hidden rounded-lg border border-zinc-800">
+            <button
+              type="button"
+              title="Undo (Ctrl+Z)"
+              disabled={!canUndo}
+              className="px-2 py-1.5 text-zinc-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-400"
+              onClick={applyUndo}
+            >
+              <Undo2 size={15} />
+            </button>
+            <button
+              type="button"
+              title="Redo (Ctrl+Shift+Z)"
+              disabled={!canRedo}
+              className="border-l border-zinc-800 px-2 py-1.5 text-zinc-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:text-zinc-400"
+              onClick={applyRedo}
+            >
+              <Redo2 size={15} />
+            </button>
+            <button
+              type="button"
+              title="Version history"
+              className={`border-l border-zinc-800 px-2 py-1.5 ${historyOpen ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}
+              onClick={() => setHistoryOpen((open) => !open)}
+            >
+              <History size={15} />
+            </button>
           </div>
           <div className="flex overflow-hidden rounded-lg border border-zinc-800">
             <button
@@ -260,14 +370,14 @@ export function FunnelStepEditorPage() {
                   ) : (
                     <BlockRenderer type={section.type} props={section.props} theme={defaultThemeTokens} />
                   )}
-                  <div className="absolute right-3 top-3 hidden gap-1 rounded-lg bg-zinc-950/90 p-1 shadow-lg group-hover:flex">
+                  <div className="absolute right-3 top-3 hidden gap-1 rounded-lg bg-zinc-950/90 p-1 text-zinc-300 shadow-lg group-hover:flex">
                     <button
                       title="Move up"
                       onClick={(event) => {
                         event.stopPropagation()
                         move(index, -1)
                       }}
-                      className="p-1.5 hover:text-white"
+                      className="p-1.5 text-zinc-300 hover:text-white"
                     >
                       <ArrowUp size={14} />
                     </button>
@@ -277,7 +387,7 @@ export function FunnelStepEditorPage() {
                         event.stopPropagation()
                         move(index, 1)
                       }}
-                      className="p-1.5 hover:text-white"
+                      className="p-1.5 text-zinc-300 hover:text-white"
                     >
                       <ArrowDown size={14} />
                     </button>
@@ -288,9 +398,9 @@ export function FunnelStepEditorPage() {
                         const copy = { ...section, id: createId('funnel'), props: structuredClone(section.props) }
                         const next = [...content.sections]
                         next.splice(index + 1, 0, copy)
-                        update(next)
+                        commit(next)
                       }}
-                      className="p-1.5 hover:text-white"
+                      className="p-1.5 text-zinc-300 hover:text-white"
                     >
                       <Copy size={14} />
                     </button>
@@ -298,9 +408,10 @@ export function FunnelStepEditorPage() {
                       title={section.hidden ? 'Show' : 'Hide'}
                       onClick={(event) => {
                         event.stopPropagation()
+                        pushHistory(content)
                         alter(section.id, (current) => ({ ...current, hidden: !current.hidden }))
                       }}
-                      className="p-1.5 hover:text-white"
+                      className="p-1.5 text-zinc-300 hover:text-white"
                     >
                       {section.hidden ? <Eye size={14} /> : <EyeOff size={14} />}
                     </button>
@@ -308,10 +419,9 @@ export function FunnelStepEditorPage() {
                       title="Delete"
                       onClick={(event) => {
                         event.stopPropagation()
-                        update(content.sections.filter((item) => item.id !== section.id))
-                        setSelectedId(null)
+                        deleteSection(section.id)
                       }}
-                      className="p-1.5 hover:text-red-400"
+                      className="p-1.5 text-zinc-300 hover:text-red-400"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -376,7 +486,7 @@ export function FunnelStepEditorPage() {
                             props: { ...current.props, [field.key]: value },
                           }))
                         }
-                        context={{ theme: defaultThemeTokens, sectionId: selected.id }}
+                        context={{ theme: defaultThemeTokens, sectionId: selected.id, products: products.data }}
                       />
                     ))}
                     {!visibleFields.length ? <p className="text-sm text-zinc-500">Nothing to edit in this tab.</p> : null}
@@ -402,6 +512,14 @@ export function FunnelStepEditorPage() {
               </span>
             </button>
           )}
+          {historyOpen ? (
+            <FunnelStepHistoryPanel
+              funnelId={id!}
+              stepId={stepId!}
+              onRestored={applyRestore}
+              onClose={() => setHistoryOpen(false)}
+            />
+          ) : null}
         </div>
       </div>
     </DndContext>

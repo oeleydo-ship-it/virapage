@@ -31,6 +31,7 @@ type TemplateKit = { id: string; label: string; matches: (type: string) => boole
 
 /** Bespoke blocks introduced by complete templates. Other kits stay out of this site’s palette. */
 export const TEMPLATE_KITS: TemplateKit[] = [
+  { id: 'forma', label: 'Forma', matches: (type) => type.endsWith('.forma') },
   { id: 'tessera', label: 'Tessera', matches: (type) => type.includes('.tessera') },
   { id: 'axiom-north', label: 'Axiom North', matches: (type) => type.includes('.axiom') },
   { id: 'lumen-lane', label: 'Lumen & Lane', matches: (type) => type.includes('.lumen') || type.includes('_lumen') },
@@ -62,6 +63,7 @@ export const TEMPLATE_KITS: TemplateKit[] = [
   { id: 'meridian', label: 'Meridian', matches: (type) => type.includes('.meridian') },
   { id: 'anchorline', label: 'Anchorline', matches: (type) => type.includes('.anchor') },
   { id: 'aperture', label: 'Aperture', matches: (type) => type.includes('.aperture') },
+  { id: 'kirki', label: 'Kirki', matches: (type) => type.includes('.kirki') },
   {
     id: 'studio',
     label: 'Studio',
@@ -233,6 +235,7 @@ export function BlockPalette({
   usedTypes?: string[]
 }) {
   const [query, setQuery] = useState('')
+  const [kitScope, setKitScope] = useState('recommended')
   const [collapsed, setCollapsed] = useState<Partial<Record<string, boolean>>>({})
   const [hovered, setHovered] = useState<{ def: BlockDefinition; top: number } | null>(null)
   const activeKit = useMemo(() => activeTemplateKit(usedTypes), [usedTypes])
@@ -242,7 +245,9 @@ export function BlockPalette({
     return listBlocks().filter((def) => {
       if (!categories.includes(def.category)) return false
       const kit = templateKitFor(def.type)
-      if (kit && kit.id !== activeKit?.id) return false
+      if (kitScope === 'recommended' && kit && kit.id !== activeKit?.id) return false
+      if (kitScope === 'generic' && kit) return false
+      if (!['recommended', 'all', 'generic'].includes(kitScope) && kit?.id !== kitScope) return false
       if (!needle) return true
       return (
         def.label.toLowerCase().includes(needle) ||
@@ -251,25 +256,31 @@ export function BlockPalette({
         kit?.label.toLowerCase().includes(needle)
       )
     })
-  }, [activeKit?.id, categories, query])
+  }, [activeKit?.id, categories, query, kitScope])
 
   return (
     <aside className={cn('flex w-72 shrink-0 flex-col border-r border-zinc-800', className)}>
       <div className="border-b border-zinc-800 p-3">
+        <label htmlFor="block-kit-scope" className="mb-2 block text-xs font-medium text-zinc-300">Block library</label>
+        <select id="block-kit-scope" value={kitScope} onChange={(event) => { setKitScope(event.target.value); setHovered(null) }} className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm text-zinc-100">
+          <option value="recommended">{activeKit ? `${activeKit.label} + essentials` : 'Essentials'}</option>
+          <option value="all">All blocks</option>
+          <option value="generic">Shared blocks only</option>
+          {TEMPLATE_KITS.map((kit) => <option key={kit.id} value={kit.id}>{kit.label}</option>)}
+        </select>
         <div className="relative">
           <Search size={14} className="pointer-events-none absolute left-3 top-2.5 text-zinc-500" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search blocks"
+            aria-label="Search blocks"
             className="w-full rounded-lg border border-zinc-700 bg-zinc-950 py-2 pl-8 pr-3 text-sm text-zinc-100 outline-none focus:border-blue-500"
           />
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        {activeKit ? (
-          <p className="mb-3 text-[11px] uppercase tracking-wide text-zinc-500">{activeKit.label} blocks</p>
-        ) : null}
+        <p role="status" className="mb-3 text-[11px] uppercase tracking-wide text-zinc-500">{matches.length} blocks available</p>
         {categories.map((category) => {
           const blocks = matches.filter((def) => def.category === category)
           if (!blocks.length) return null
@@ -301,7 +312,7 @@ export function BlockPalette({
             </div>
           )
         })}
-        {!matches.length ? <p className="text-sm text-zinc-500">No blocks match “{query}”.</p> : null}
+        {!matches.length ? <div className="text-sm text-zinc-400"><p>No blocks match your filters.</p><button type="button" className="mt-2 text-blue-400 hover:underline" onClick={() => { setQuery(''); setKitScope('all') }}>Clear filters and browse all blocks</button></div> : null}
       </div>
       {hovered ? (
         <div

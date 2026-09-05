@@ -1,15 +1,15 @@
 import type { Funnel, FunnelAnalytics, FunnelStep } from '@uidesired/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Activity, ArrowRight, BarChart3, CheckCircle2, Copy, ExternalLink, GitBranch,
+  Activity, ArrowRight, BarChart3, CheckCircle2, Copy, Download, ExternalLink, GitBranch,
   DollarSign, Globe2, LayoutTemplate, Monitor, Pause, Plus, Radio, Rocket, Search,
-  ShoppingCart, Sparkles, Target, Trash2, TrendingDown, Users, Workflow,
+  ShoppingCart, Sparkles, Target, Trash2, TrendingDown, Upload, Users, Workflow,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link, NavLink, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { FunnelAutomations } from '../components/FunnelAutomations'
 import { FunnelExperiments } from '../components/FunnelExperiments'
-import { funnelsApi } from '../lib/endpoints'
+import { funnelsApi, productsApi, type FunnelExport } from '../lib/endpoints'
 import { Badge, Button, Card, DataTable, EmptyState, Input, Label, PageHeader, Select } from '../ui/primitives'
 import { cn } from '@uidesired/utilities'
 import { standaloneFunnelUrl } from '../lib/siteUrls'
@@ -26,7 +26,7 @@ const goals = [
 const stepTypes = [
   ['landing_page', 'Landing Page'], ['lead_form', 'Lead Form'], ['offer_page', 'Offer Page'],
   ['checkout', 'Checkout'], ['upsell', 'Upsell'], ['downsell', 'Downsell'], ['booking', 'Booking'],
-  ['survey', 'Survey'], ['thank_you', 'Thank You'], ['redirect', 'Redirect'], ['custom_page', 'Custom Page'],
+  ['survey', 'Survey'], ['quiz', 'Quiz'], ['thank_you', 'Thank You'], ['redirect', 'Redirect'], ['custom_page', 'Custom Page'],
 ]
 
 function FunnelNav() {
@@ -49,11 +49,38 @@ function Metric({ label, value, icon: Icon }: { label: string; value: string | n
 export function FunnelsPage() {
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
+  const navigate = useNavigate()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [importError, setImportError] = useState<string | null>(null)
   const funnels = useQuery({ queryKey: ['funnels', q, status], queryFn: () => funnelsApi.list({ q: q || undefined, status: status || undefined }) })
   const analytics = useQuery({ queryKey: ['funnel-analytics', 30], queryFn: () => funnelsApi.analytics(undefined, 30) })
+  const importFunnel = useMutation({
+    mutationFn: (payload: FunnelExport) => funnelsApi.import(payload),
+    onSuccess: (imported) => navigate(`/funnels/${imported.id}`),
+    onError: (error: Error) => setImportError(error.message || 'That file could not be imported.'),
+  })
   const data = analytics.data
   const rows = funnels.data?.data || []
-  return <div><FunnelNav /><PageHeader title="Funnels" description="Build connected customer journeys, publish them on your sites, and see what converts." actions={<Link to="/funnels/new"><Button><Plus size={16} />Create funnel</Button></Link>} />
+  return <div><FunnelNav /><PageHeader title="Funnels" description="Build connected customer journeys, publish them on your sites, and see what converts." actions={<div className="flex flex-wrap gap-2">
+      <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={(event) => {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        if (!file) return
+        setImportError(null)
+        const reader = new FileReader()
+        reader.onload = () => {
+          try {
+            importFunnel.mutate(JSON.parse(String(reader.result)) as FunnelExport)
+          } catch {
+            setImportError('That is not a valid funnel export file.')
+          }
+        }
+        reader.readAsText(file)
+      }} />
+      <Button variant="outline" disabled={importFunnel.isPending} onClick={() => fileRef.current?.click()}><Upload size={16} />{importFunnel.isPending ? 'Importing…' : 'Import funnel'}</Button>
+      <Link to="/funnels/new"><Button><Plus size={16} />Create funnel</Button></Link>
+    </div>} />
+    {importError ? <div className="mb-4 rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-300">{importError}</div> : null}
     <div className="grid gap-3 md:grid-cols-4"><Metric label="Total funnels" value={rows.length} icon={Workflow} /><Metric label="Unique visitors" value={data?.unique_visitors ?? 0} icon={Users} /><Metric label="Leads" value={data?.leads ?? 0} icon={Target} /><Metric label="Conversion rate" value={`${data?.conversion_rate ?? 0}%`} icon={BarChart3} /></div>
     <div className="my-5 flex gap-2"><div className="relative flex-1"><Search className="absolute left-3 top-2.5 text-zinc-600" size={16}/><Input className="pl-9" placeholder="Search funnels" value={q} onChange={(e)=>setQ(e.target.value)} /></div><Select value={status} onChange={(e)=>setStatus(e.target.value)}><option value="">All statuses</option><option value="published">Published</option><option value="draft">Draft</option><option value="paused">Paused</option></Select></div>
     {funnels.isLoading ? <Card>Loading funnels…</Card> : rows.length === 0 ? <Card><EmptyState icon={<Workflow size={36}/>} title="You haven't created a funnel yet" description="Start with a polished landing page, lead form, and thank-you page—all editable in your existing builder."><Link to="/funnels/new"><Button>Create your first funnel</Button></Link></EmptyState></Card> : <div className="grid gap-4 md:grid-cols-2">{rows.map((funnel)=><FunnelCard key={funnel.id} funnel={funnel}/>)}</div>}
@@ -71,16 +98,37 @@ export function CreateFunnelPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const presetTemplate = params.get('template')?.trim() || ''
+  const products = useQuery({ queryKey: ['products'], queryFn: () => productsApi.list({ status: 'active' }) })
   const [form, setForm] = useState({
     name: '',
     description: '',
     type: presetTemplate === 'consultation' ? 'booking' : presetTemplate === 'product_launch' ? 'sales' : 'lead_generation',
     goal: presetTemplate === 'consultation' ? 'book_appointments' : presetTemplate === 'product_launch' ? 'sell_product' : 'collect_leads',
     template: presetTemplate || 'lead_magnet',
+    product_id: '',
   })
-  const create = useMutation({ mutationFn: () => funnelsApi.create(form), onSuccess: (funnel) => navigate(`/funnels/${funnel.id}`) })
+  const sellsProduct = form.template === 'product_launch'
+  const create = useMutation({
+    mutationFn: () =>
+      funnelsApi.create({ ...form, product_id: form.product_id ? Number(form.product_id) : undefined }),
+    onSuccess: (funnel) => navigate(`/funnels/${funnel.id}`),
+  })
   return <div><FunnelNav /><PageHeader title="Create a funnel" description="Choose a goal and we'll create a connected, editable starter journey." />
-    <div className="grid gap-6 lg:grid-cols-[1fr_360px]"><Card className="space-y-4"><div><Label>Funnel name</Label><Input autoFocus placeholder="Website Design Consultation" value={form.name} onChange={(e)=>setForm({...form,name:e.target.value})}/></div><div><Label>Description</Label><textarea className="min-h-24 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="What this funnel helps visitors accomplish" value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})}/></div><div><Label>Starter structure</Label><Select className="w-full" value={form.template} onChange={(e)=>{const template=e.target.value;setForm({...form,template,type:template==='consultation'?'booking':template==='product_launch'?'sales':'lead_generation',goal:template==='consultation'?'book_appointments':template==='product_launch'?'sell_product':'collect_leads'})}}><option value="lead_magnet">Lead magnet — Landing → Form → Thank you</option><option value="consultation">Consultation — Offer → Survey → Booking → Confirmation</option><option value="product_launch">Product launch — Landing → Offer → Checkout → Upsell → Thanks</option></Select></div><div><Label>Funnel type</Label><Select className="w-full" value={form.type} onChange={(e)=>setForm({...form,type:e.target.value})}>{funnelTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></div><div><Label>Primary goal</Label><Select className="w-full" value={form.goal} onChange={(e)=>setForm({...form,goal:e.target.value})}>{goals.map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></div>{create.isError?<p className="text-sm text-red-400">{create.error instanceof Error?create.error.message:'Could not create funnel.'}</p>:null}<Button disabled={!form.name || create.isPending} onClick={()=>create.mutate()}><Sparkles size={16}/>{create.isPending?'Building journey…':'Create standalone funnel'}</Button></Card>
+    <div className="grid gap-6 lg:grid-cols-[1fr_360px]"><Card className="space-y-4"><div><Label>Funnel name</Label><Input autoFocus placeholder="Website Design Consultation" value={form.name} onChange={(e)=>setForm({...form,name:e.target.value})}/></div><div><Label>Description</Label><textarea className="min-h-24 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-blue-500" placeholder="What this funnel helps visitors accomplish" value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})}/></div><div><Label>Starter structure</Label><Select className="w-full" value={form.template} onChange={(e)=>{const template=e.target.value;setForm({...form,template,type:template==='consultation'?'booking':template==='product_launch'?'sales':'lead_generation',goal:template==='consultation'?'book_appointments':template==='product_launch'?'sell_product':'collect_leads'})}}><option value="lead_magnet">Lead magnet — Landing → Form → Thank you</option><option value="consultation">Consultation — Offer → Survey → Booking → Confirmation</option><option value="product_launch">Product launch — Landing → Offer → Checkout → Upsell → Thanks</option></Select></div>
+        {sellsProduct ? (
+          <div>
+            <Label>What this funnel sells</Label>
+            {products.data?.length ? (
+              <Select className="w-full" value={form.product_id} onChange={(e)=>setForm({...form,product_id:e.target.value})}>
+                <option value="">Choose a product…</option>
+                {products.data.map((product)=><option key={product.id} value={product.id}>{product.name}</option>)}
+              </Select>
+            ) : (
+              <p className="text-xs text-zinc-500">No active products yet — <Link to="/products" className="text-blue-400 hover:text-blue-300">add one</Link>, or pick it later inside the checkout step.</p>
+            )}
+          </div>
+        ) : null}
+        <div><Label>Funnel type</Label><Select className="w-full" value={form.type} onChange={(e)=>setForm({...form,type:e.target.value})}>{funnelTypes.map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></div><div><Label>Primary goal</Label><Select className="w-full" value={form.goal} onChange={(e)=>setForm({...form,goal:e.target.value})}>{goals.map(([value,label])=><option key={value} value={value}>{label}</option>)}</Select></div>{create.isError?<p className="text-sm text-red-400">{create.error instanceof Error?create.error.message:'Could not create funnel.'}</p>:null}<Button disabled={!form.name || create.isPending} onClick={()=>create.mutate()}><Sparkles size={16}/>{create.isPending?'Building journey…':'Create standalone funnel'}</Button></Card>
       <Card><h3 className="font-medium text-white">Independent landing-page builder</h3><p className="mt-1 text-sm text-zinc-500">No website is required. Your funnel gets its own block canvas and public URL.</p><div className="mt-5 space-y-3">{['Start with a polished multi-step journey','Edit each step in the full block library','Publish and track leads without a site'].map((item,index)=><div className="flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 p-3" key={item}><span className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-950 text-xs text-blue-300">{index+1}</span><span className="text-sm text-zinc-200">{item}</span></div>)}</div></Card></div>
   </div>
 }
@@ -99,6 +147,18 @@ export function FunnelBuilderPage() {
   const publish = useMutation({ mutationFn: () => publishFunnelWithRenders(id!), onSuccess: refresh })
   const pause = useMutation({ mutationFn: () => funnelsApi.pause(id!), onSuccess: refresh })
   const duplicate = useMutation({ mutationFn: () => funnelsApi.duplicate(id!), onSuccess: (copy) => window.location.assign(`/funnels/${copy.id}`) })
+  const exportFunnel = useMutation({
+    mutationFn: () => funnelsApi.export(id!),
+    onSuccess: (data) => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.funnel.json`
+      link.click()
+      URL.revokeObjectURL(url)
+    },
+  })
   const remove = useMutation({ mutationFn: () => funnelsApi.remove(id!), onSuccess: () => { qc.invalidateQueries({queryKey:['funnels']}); navigate('/funnels') } })
   const addStep = useMutation({ mutationFn: () => funnelsApi.addStep(id!, newStep), onSuccess: () => { setNewStep({name:'',type:'offer_page'}); refresh() } })
   const connect = useMutation({ mutationFn: (target:number) => funnelsApi.connect(id!, connectFrom!, target), onSuccess: () => {setConnectFrom(null);refresh()} })
@@ -110,7 +170,7 @@ export function FunnelBuilderPage() {
   if(funnel.isLoading) return <Card>Loading funnel builder…</Card>
   if(!data) return <Card>Funnel not found.</Card>
   const preview = standaloneFunnelUrl(data.public_id, data.steps?.[0]?.slug || 'start')
-  return <div><FunnelNav /><PageHeader title={data.name} description={`Standalone funnel · ${data.steps?.length || 0} landing pages`} actions={<div className="flex flex-wrap gap-2">{data.status==='published'&&preview?<a href={preview} target="_blank" rel="noreferrer"><Button variant="outline"><ExternalLink size={15}/>Preview</Button></a>:null}<Button variant="outline" onClick={()=>duplicate.mutate()}><Copy size={15}/>Duplicate</Button>{data.status==='published'?<Button variant="outline" onClick={()=>pause.mutate()}><Pause size={15}/>Pause</Button>:<Button onClick={()=>publish.mutate()}><Rocket size={15}/>Publish</Button>}<Button variant="danger" disabled={remove.isPending} onClick={()=>{if(window.confirm(`Delete “${data.name}”? Its public funnel URL will stop working. Analytics data is retained for reporting.`))remove.mutate()}}><Trash2 size={15}/>{remove.isPending?'Deleting…':'Delete'}</Button></div>} />
+  return <div><FunnelNav /><PageHeader title={data.name} description={`Standalone funnel · ${data.steps?.length || 0} landing pages`} actions={<div className="flex flex-wrap gap-2">{data.status==='published'&&preview?<a href={preview} target="_blank" rel="noreferrer"><Button variant="outline"><ExternalLink size={15}/>Preview</Button></a>:null}<Button variant="outline" onClick={()=>duplicate.mutate()}><Copy size={15}/>Duplicate</Button><Button variant="outline" disabled={exportFunnel.isPending} onClick={()=>exportFunnel.mutate()}><Download size={15}/>{exportFunnel.isPending?'Exporting…':'Export'}</Button>{data.status==='published'?<Button variant="outline" onClick={()=>pause.mutate()}><Pause size={15}/>Pause</Button>:<Button onClick={()=>publish.mutate()}><Rocket size={15}/>Publish</Button>}<Button variant="danger" disabled={remove.isPending} onClick={()=>{if(window.confirm(`Delete “${data.name}”? Its public funnel URL will stop working. Analytics data is retained for reporting.`))remove.mutate()}}><Trash2 size={15}/>{remove.isPending?'Deleting…':'Delete'}</Button></div>} />
     {remove.isError?<div className="mb-4 rounded-lg border border-red-900 bg-red-950/30 px-4 py-3 text-sm text-red-300">{remove.error instanceof Error?remove.error.message:'Could not delete this funnel.'}</div>:null}
     <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2"><Badge tone={data.status==='published'?'success':'neutral'}>{data.status}</Badge><Link to={`/funnels/${id}/analytics`} className="text-sm text-blue-400 hover:text-blue-300">View analytics</Link></div><div className="flex items-center gap-2"><Button variant="outline" onClick={()=>setZoom(Math.max(.6,zoom-.1))}>−</Button><span className="w-14 text-center text-xs text-zinc-500">{Math.round(zoom*100)}%</span><Button variant="outline" onClick={()=>setZoom(Math.min(1.4,zoom+.1))}>+</Button></div></div>
     <Card padded={false} className="overflow-hidden"><div ref={canvasRef} className="relative h-[520px] overflow-auto bg-zinc-950" style={{backgroundImage:'radial-gradient(#27272a 1px, transparent 1px)',backgroundSize:'20px 20px'}}><div className="relative h-[800px] w-[1300px] origin-top-left" style={{transform:`scale(${zoom})`}}><svg className="absolute inset-0 h-full w-full">{data.connections?.map(c=>{const a=data.steps?.find(s=>s.id===c.source_step_id),b=data.steps?.find(s=>s.id===c.target_step_id);if(!a||!b)return null;const midX=(a.canvas_x+240+b.canvas_x)/2, midY=(a.canvas_y+65+b.canvas_y+65)/2;return <g key={c.id}><path d={`M ${a.canvas_x+240} ${a.canvas_y+65} C ${a.canvas_x+270} ${a.canvas_y+65}, ${b.canvas_x-30} ${b.canvas_y+65}, ${b.canvas_x} ${b.canvas_y+65}`} stroke="#2563eb" strokeWidth="2" fill="none"/><circle cx={midX} cy={midY} r="10" className="cursor-pointer fill-zinc-900 stroke-zinc-600 hover:stroke-red-400" onClick={()=>{if(window.confirm('Remove this connection?'))disconnect.mutate(c.id)}}/><title>Remove connection</title></g>})}</svg>{data.steps?.map(step=><FunnelNode key={step.id} step={step} funnel={data} stats={stats.get(step.id)} connectFrom={connectFrom} onConnect={()=>connectFrom&&connectFrom!==step.id?connect.mutate(step.id):setConnectFrom(step.id)} onDelete={()=>{if((data.steps?.length||0)<=1){window.alert('Keep at least one step.');return} if(window.confirm(`Delete step “${step.name}”?`))deleteStep.mutate(step.id)}} onMove={(x,y)=>move.mutate({step,x,y})}/>)}</div></div></Card>
@@ -203,12 +263,12 @@ export function FunnelSettingsPage() {
     ['Data retention', 'Raw-event and session retention are controlled by Super Admin platform settings.'],
   ]
   const phases = [
-    ['Phase 1 — Core', 'done', 'CRUD, steps, connections, page editor, publish, public URL, leads, basic tracking'],
+    ['Phase 1 — Core', 'done', 'CRUD, steps, auto-connected flow, page editor, publish, public URL, leads, basic tracking'],
     ['Phase 2 — Analytics', 'done', 'Sessions, UTMs, devices, geo, drop-off, revenue attribution, live aggregates'],
-    ['Phase 3 — Conversion tools', 'partial', 'Checkout and upsell steps sell through your own Stripe, with orders recorded; coupons not built yet'],
-    ['Phase 4 — Experiments', 'later', 'A/B testing, variants, winner selection'],
-    ['Phase 5 — Automation', 'later', 'Triggers, delays, email, webhooks'],
-    ['Phase 6 — Advanced tools', 'partial', 'Starter templates shipped; quizzes, import/export, version history later'],
+    ['Phase 3 — Conversion tools', 'done', 'Checkout and upsell steps sell through your own Stripe, with orders and coupon codes both recorded'],
+    ['Phase 4 — Experiments', 'done', 'A/B testing per step, weighted variants, winner selection'],
+    ['Phase 5 — Automation', 'done', 'Triggers, delays, email, and signed webhooks, with SSRF-safe URL checks'],
+    ['Phase 6 — Advanced tools', 'partial', 'Starter templates shipped with a full page design, not a bare hero; quizzes, import/export, version history later'],
   ] as const
   const tone = (status: typeof phases[number][1]) => status === 'done' ? 'success' as const : status === 'partial' ? 'warning' as const : 'neutral' as const
   return <div><FunnelNav/><PageHeader title="Funnel settings" description="Privacy defaults and build roadmap for this workspace."/><Card className="max-w-2xl space-y-4">{capabilities.map(([title,description],index)=><div key={title} className={cn('flex items-center justify-between gap-5',index?'border-t border-zinc-800 pt-4':'')}><div><h3 className="text-sm font-medium text-white">{title}</h3><p className="mt-1 text-xs text-zinc-500">{description}</p></div><Badge tone="success"><CheckCircle2 size={12} className="mr-1"/>Active</Badge></div>)}<div className="rounded-lg border border-blue-900 bg-blue-950/30 p-4 text-sm text-blue-200">The global module switch is controlled by Super Admin under Admin → Settings. Disabling it hides navigation and returns 404 from dashboard, public, and tracking APIs without deleting data.</div></Card>

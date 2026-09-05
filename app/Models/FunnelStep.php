@@ -33,4 +33,10 @@ class FunnelStep extends Model
     {
         return $this->hasMany(FunnelStepVariant::class);
     }
+
+    /** Snapshots of this step's content, newest first. */
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(FunnelStepRevision::class)->orderByDesc('version_number');
+    }
 }

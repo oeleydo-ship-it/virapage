@@ -177,7 +177,7 @@ export const funnelsApi = {
   list: (params?: { q?: string; status?: string; page?: number }) =>
     apiPaginated<Funnel>(`/funnels${queryString({ ...params })}`),
   get: (id: string | number) => http.get<Funnel>(`/funnels/${id}`),
-  create: (body: { name: string; description?: string; type?: string; goal?: string; template?: string }) =>
+  create: (body: { name: string; description?: string; type?: string; goal?: string; template?: string; product_id?: number }) =>
     http.post<Funnel>('/funnels', body),
   update: (id: string | number, body: Partial<Funnel>) => http.patch<Funnel>(`/funnels/${id}`, body),
   remove: (id: string | number) => http.delete<{ ok: boolean }>(`/funnels/${id}`),
@@ -197,6 +197,56 @@ export const funnelsApi = {
   connect: (id: string | number, source_step_id: number, target_step_id: number) =>
     http.post(`/funnels/${id}/connections`, { source_step_id, target_step_id }),
   disconnect: (id: string | number, connectionId: string | number) => http.delete(`/funnels/${id}/connections/${connectionId}`),
+  /** A portable snapshot of a funnel's structure - steps and how they connect. */
+  export: (id: string | number) => http.get<FunnelExport>(`/funnels/${id}/export`),
+  /** Rebuilds a funnel from an export: a copy, not a link back to the original. */
+  import: (payload: FunnelExport) => http.post<Funnel>('/funnels/import', payload),
+}
+
+export type FunnelExport = {
+  name: string
+  description?: string | null
+  type?: string
+  goal?: string
+  settings?: Record<string, unknown>
+  steps: Array<{
+    name: string
+    slug: string
+    type: string
+    canvas_x?: number
+    canvas_y?: number
+    settings?: Record<string, unknown>
+    content: import('@uidesired/types').PageContent
+  }>
+  connections: Array<{
+    source_slug: string
+    target_slug: string
+    connection_type?: string
+    conditions?: Record<string, unknown>
+    priority?: number
+  }>
+}
+
+export type FunnelStepRevision = {
+  id: number
+  funnel_step_id: number
+  version_number: number
+  /** created | draft | published | restore */
+  reason?: string | null
+  section_count?: number
+  author?: string | null
+  created_at?: string | null
+  /** Only present when a single revision is fetched. */
+  content?: { schemaVersion?: number; sections?: unknown[] } | null
+}
+
+export const funnelStepRevisionsApi = {
+  list: (funnelId: string | number, stepId: string | number) =>
+    http.get<FunnelStepRevision[]>(`/funnels/${funnelId}/steps/${stepId}/revisions`),
+  get: (funnelId: string | number, stepId: string | number, revisionId: string | number) =>
+    http.get<FunnelStepRevision>(`/funnels/${funnelId}/steps/${stepId}/revisions/${revisionId}`),
+  restore: (funnelId: string | number, stepId: string | number, revisionId: string | number) =>
+    http.post<FunnelStep>(`/funnels/${funnelId}/steps/${stepId}/revisions/${revisionId}/restore`),
 }
 
 export const sitesApi = {

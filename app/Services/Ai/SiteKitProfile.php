@@ -52,6 +52,10 @@ class SiteKitProfile
             'label' => 'Aperture',
             'note' => 'Creative agency and design studio. A white sheet broken by ink-black service bands and faint cool-grey process bands, one warm coral accent on kickers and numbering, large geometric headlines set tight, heavily rounded photography.',
         ],
+        'kirki' => [
+            'label' => 'Kirki',
+            'note' => 'Revenue-consulting agency. Off-white sheet, tight 600-weight Inter headlines, one lime-yellow accent carrying every button and the footer contact band, a white star-rating pill opening every hero, heavily rounded 16-20px cards, a stat or client name proving nearly every claim.',
+        ],
         'anchor' => [
             'label' => 'Anchorline',
             'note' => 'Editorial freight forwarding and logistics. A wide near-white sheet ruled by hairlines, Newsreader serif headlines over Poppins body, a utility bar above the navbar, and a photo hero cut by a diagonal brand wedge.',
