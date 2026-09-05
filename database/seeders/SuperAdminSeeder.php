@@ -19,11 +19,20 @@ class SuperAdminSeeder extends Seeder
         }
 
         $user = User::query()->firstOrNew(['email' => $email]);
+        $creating = ! $user->exists;
         $user->fill([
             'name' => $name,
-            'password' => $password,
             'is_super_admin' => true,
         ]);
+
+        // The password is only ever written when the account is created. This
+        // seeder runs from a migration, so it executes against live databases
+        // where the administrator has long since changed their password -
+        // filling it unconditionally would silently reset that to whatever
+        // SUPER_ADMIN_PASSWORD happens to be, which defaults to "password".
+        if ($creating) {
+            $user->password = $password;
+        }
         if ($user->email_verified_at === null) {
             $user->email_verified_at = now();
         }
