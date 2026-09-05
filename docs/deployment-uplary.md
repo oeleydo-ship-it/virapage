@@ -78,7 +78,8 @@ It runs on **every** deploy, not only the ones that had a migration pending.
 This used to hang off the migration itself, which runs once per database, so a
 release that added a template and no migration never reached production - the
 catalogue stayed at whatever it held the day the migration first ran. Aperture,
-Forma and Kirki sat in that gap for a week.
+Forma and Kirki were added five days after it, and were the ones that went
+missing.
 
 **Set `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD` in `.env` before that
 release.** `SuperAdminSeeder` returns without doing anything when either is
