@@ -160,11 +160,13 @@ class PublicLivechatController extends Controller
       panel.innerHTML = {$bt}<div class="ud-lc-head"><div class="ud-lc-av" style="background:linear-gradient(145deg,var(--ud-lc-accent),var(--ud-lc-surface-2))">\${escapeHtml(brand.charAt(0).toUpperCase())}</div><div style="flex:1;min-width:0"><div style="font-weight:650;font-size:14px">\${escapeHtml(brand)}</div><div class="ud-lc-online"><span class="ud-lc-dot"></span>Online · usually replies in a minute</div></div><button type="button" class="ud-lc-x" aria-label="Close">\${icon('x')}</button></div><p class="ud-lc-greet">\${escapeHtml(boot.config.greeting||'')}</p>{$bt};
       panel.querySelector('.ud-lc-x').onclick = () => { open = false; render(); };
       if (!token || !conv) {
+        const formShownAt = Date.now();
         const form = el('<form class="ud-lc-form"></form>');
         form.innerHTML = '<p>Leave your details and we’ll pick this up right away.</p>';
         if (boot.config.collect_name) form.innerHTML += '<input name="name" placeholder="Full name" required />';
         if (boot.config.collect_email) form.innerHTML += '<input name="email" type="email" placeholder="Work email" required />';
         if (boot.config.collect_phone) form.innerHTML += '<input name="phone" placeholder="Phone" required />';
+        form.innerHTML += '<div aria-hidden="true" style="position:absolute;left:-10000px;height:0;overflow:hidden"><label>Website<input name="website" tabindex="-1" autocomplete="off" /></label></div>';
         form.innerHTML += '<button>Start conversation</button>';
         form.onsubmit = async (e) => {
           e.preventDefault();
@@ -172,6 +174,7 @@ class PublicLivechatController extends Controller
           try {
             const data = await api('/conversations', { method:'POST', json: {
               name: fd.get('name'), email: fd.get('email'), phone: fd.get('phone'),
+              website: fd.get('website'), elapsedMs: Date.now() - formShownAt,
               page_url: location.href, locale: navigator.language, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
               screen: screen.width + 'x' + screen.height,
             }});
@@ -255,9 +258,25 @@ JS;
         ]);
     }
 
+    /**
+     * A human takes at least this long to see the pre-chat form and type into
+     * it, mirroring the same check on public form submissions.
+     */
+    private const MIN_FILL_MS = 1200;
+
     public function start(Request $request, string $publicKey, LivechatService $livechat)
     {
         $widget = $this->widget($publicKey);
+
+        $honeypot = $request->input('website');
+        if (filled($honeypot)) {
+            abort(422, 'Spam detected.');
+        }
+        $elapsedMs = $request->input('elapsedMs');
+        if (is_numeric($elapsedMs) && (float) $elapsedMs < self::MIN_FILL_MS) {
+            abort(422, 'Spam detected.');
+        }
+
         $data = $request->validate([
             'name' => ['nullable', 'string', 'max:120'],
             'email' => ['nullable', 'email', 'max:190'],

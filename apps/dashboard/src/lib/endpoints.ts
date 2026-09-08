@@ -19,6 +19,7 @@ import type {
   Plan,
   PlanLimitSchema,
   Site,
+  SiteAnalytics,
   SiteChrome,
   SiteForm,
   SiteSettings,
@@ -282,6 +283,7 @@ export const sitesApi = {
     http.post<Site>(`/sites/${id}/apply-template`, { template_id }),
   previewToken: (id: string | number) =>
     http.post<{ token_url: string; expires_at: string; site_id: number }>(`/sites/${id}/preview-token`),
+  analytics: (id: string | number, days = 7) => http.get<SiteAnalytics>(`/sites/${id}/analytics?days=${days}`),
 }
 
 export const clientsApi = {

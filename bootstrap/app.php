@@ -45,6 +45,15 @@ return Application::configure(basePath: dirname(__DIR__))
             SecurityHeaders::class,
         ]);
 
+        // The dashboard SPA shell and every published customer site answer
+        // through routes/web.php (see EntryController), which previously
+        // carried none of the response headers above - clickjacking and CSP
+        // protection existed only for JSON API responses, not the actual
+        // HTML a browser renders.
+        $middleware->web(prepend: [
+            SecurityHeaders::class,
+        ]);
+
         // Ahead of Laravel's own HandleCors, which sits in the true global
         // stack (before any route-group middleware even runs): the public
         // embed endpoints (livechat, forms, funnel tracking) are called from

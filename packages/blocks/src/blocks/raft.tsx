@@ -21,6 +21,7 @@ import {
   Avatar,
   Button,
   Card,
+  Column,
   CtaGroup,
   Grid,
   Heading,
@@ -35,6 +36,7 @@ import {
   str,
 } from '../primitives'
 import {
+  columnStyleFields,
   descriptionField,
   eyebrowField,
   headingField,
@@ -473,9 +475,9 @@ export const cardsRaft = defineBlock({
     return (
       <SectionShell props={props} tone="default" className="ud-rf ud-rf-cards">
         <div className="ud-split">
-          <div className="ud-split__media">
+          <Column name="mediaColumn" className="ud-split__media">
             <Media src={props.image} alt={str(props.heading)} ratio="portrait" className="ud-rf-cards__img" edit={edit} path={['image']} />
-          </div>
+          </Column>
           <div>
             <RfHead props={props} />
             <div className="ud-rf-cards__list">

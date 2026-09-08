@@ -5,6 +5,7 @@ import {
   CtaGroup,
   Heading,
   IconBadge,
+  Column,
   Media,
   SafeText,
   SectionHead,
@@ -16,7 +17,7 @@ import {
   num,
   str,
 } from '../primitives'
-import { ctaFields, field, headFields, icon, image, schema, select, slider, text, toggle } from '../schema'
+import { columnStyleFields, ctaFields, field, headFields, icon, image, schema, select, slider, text, toggle } from '../schema'
 import { defineBlock } from '../types'
 
 /* ------------------------------------------------------------- cta.simple */
@@ -109,6 +110,8 @@ export const ctaSplit = defineBlock({
     field('bullets', 'textarea', 'Bullets (one per line)', 'content'),
     image('image', 'Image'),
     select('layout', 'Layout', [['copy-media', 'Copy + image'], ['copy-cta', 'Copy + buttons'], ['media-copy', 'Image + copy']], 'layout'),
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: (props) => {
     const edit = editOf(props)
@@ -150,13 +153,13 @@ export const ctaSplit = defineBlock({
     return (
       <SectionShell props={props} tone="dark">
         <div className={cx('ud-split', layout === 'media-copy' && 'ud-split--reverse')}>
-          <div>
+          <Column name="copyColumn">
             {copy}
             <CtaGroup props={props} secondaryVariant="outline" />
-          </div>
-          <div className="ud-split__media">
+          </Column>
+          <Column name="mediaColumn" className="ud-split__media">
             <Media src={props.image} ratio="landscape" edit={editOf(props)} path={['image']} />
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )

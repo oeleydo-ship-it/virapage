@@ -274,6 +274,53 @@ it('rejects chats when the widget is disabled', function () {
     ])->assertForbidden();
 });
 
+it('rejects a chat start from a filled honeypot or an implausibly fast form fill', function () {
+    ['user' => $user, 'workspace' => $workspace] = tenant();
+    $headers = authHeaders($user, $workspace);
+    $siteId = $this->withHeaders($headers)
+        ->postJson('/api/v1/sites', ['name' => 'Watchtower', 'subdomain' => 'watchtowerchat'])
+        ->assertCreated()
+        ->json('data.id');
+
+    $key = $this->withHeaders($headers)
+        ->putJson('/api/v1/sites/'.$siteId.'/livechat', ['enabled' => true])
+        ->assertOk()
+        ->json('data.public_key');
+
+    $this->postJson('/api/v1/public/livechat/'.$key.'/conversations', [
+        'name' => 'Bot',
+        'email' => 'bot@example.com',
+        'phone' => '5550100',
+        'website' => 'http://spam.test',
+    ])->assertStatus(422);
+
+    $this->postJson('/api/v1/public/livechat/'.$key.'/conversations', [
+        'name' => 'Bot',
+        'email' => 'bot@example.com',
+        'phone' => '5550100',
+        'elapsedMs' => 20,
+    ])->assertStatus(422);
+
+    expect(LivechatConversation::query()->count())->toBe(0);
+
+    // A plausible fill time, and a request with no timing field at all
+    // (an older cached widget script), both go through normally.
+    $this->postJson('/api/v1/public/livechat/'.$key.'/conversations', [
+        'name' => 'Robin',
+        'email' => 'robin@example.com',
+        'phone' => '5550101',
+        'elapsedMs' => 3000,
+    ])->assertCreated();
+
+    $this->postJson('/api/v1/public/livechat/'.$key.'/conversations', [
+        'name' => 'Ada',
+        'email' => 'ada@example.com',
+        'phone' => '5550102',
+    ])->assertCreated();
+
+    expect(LivechatConversation::query()->count())->toBe(2);
+});
+
 it('lets an agent manually link and unlink a conversation to a CRM client', function () {
     ['user' => $user, 'workspace' => $workspace] = tenant();
     $headers = authHeaders($user, $workspace);

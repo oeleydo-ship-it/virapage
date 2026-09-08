@@ -110,6 +110,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(40)->by($request->ip().'|'.$request->route('publicKey'));
         });
 
+        RateLimiter::for('public-track', function (Request $request) {
+            return Limit::perMinute(60)->by($request->ip().'|'.$request->getHost());
+        });
+
         // Stripe retries with backoff and a busy shop can burst, so this is
         // generous - and keyed by endpoint token, so one workspace's traffic
         // cannot throttle another's payments.

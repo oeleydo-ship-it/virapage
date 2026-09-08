@@ -1,0 +1,26 @@
+{
+  "reference": "https://template-pet-grooming.webflow.io/",
+  "assets": {
+    "hero.webp": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f530dff843236906c1fff8_Pet%20Grooming.webp",
+    "story.webp": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f5334a4268998fb1b9a3d9_Image%20Combo%20Halves.webp",
+    "team-1.jpg": "https://cdn.prod.website-files.com/66f4edb68fbc5fb41678d394/66f4f5b2f0b05a65b766239e_Team%201-min.jpg",
+    "team-2.jpg": "https://cdn.prod.website-files.com/66f4edb68fbc5fb41678d394/66f4f69aa86af37b9d1a9573_Team%202-min.jpg",
+    "team-3.jpg": "https://cdn.prod.website-files.com/66f4edb68fbc5fb41678d394/66f4f6bdf0b05a65b7672ecb_Team%203-min.jpg",
+    "team-4.jpg": "https://cdn.prod.website-files.com/66f4edb68fbc5fb41678d394/66f4f6e4085fe41c356e0e76_Team%204-min.jpg",
+    "team-5.jpg": "https://cdn.prod.website-files.com/66f4edb68fbc5fb41678d394/66f4f700fd63468ccbb4b4ea_Team%205-min.jpg",
+    "testimonial-1.webp": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f552e8628aa2c0edf08878_Testimonial%201.webp",
+    "testimonial-2.webp": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f552e8558bc8b45804869f_Testimonial%202.webp",
+    "journal-1.jpg": "https://cdn.prod.website-files.com/66f4edb68fbc5fb41678d394/66f4fccddb9976ff614e6039_Blog%206-min.jpg",
+    "journal-2.jpg": "https://cdn.prod.website-files.com/66f4edb68fbc5fb41678d394/66f4fcc27db2bfe6107333b4_Blog%205-min.jpg",
+    "journal-3.jpg": "https://cdn.prod.website-files.com/66f4edb68fbc5fb41678d394/66f4fcb66d8d681f65d53f15_Blog%204-min.jpg",
+    "visit.mp4": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7%2F66fa1c5edb906988c9baad9d_1106011_1080p_Two_1280x720-transcode.mp4",
+    "visit.jpg": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7%2F66fa1c5edb906988c9baad9d_1106011_1080p_Two_1280x720-poster-00001.jpg",
+    "fredoka-400.ttf": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f4eb8c8fbc5fb41676b362_Fredoka-Regular.ttf",
+    "fredoka-500.ttf": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f4eb8cbfc12ceb1ff83863_Fredoka-Medium.ttf",
+    "fredoka-600.ttf": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f4eb8c8fbc5fb41676b349_Fredoka-SemiBold.ttf",
+    "fredoka-700.ttf": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f4eb8c1030b321fb74d980_Fredoka-Bold.ttf",
+    "satoshi-400.otf": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f4eba9efdfb829fb570a73_Satoshi-Regular.otf",
+    "satoshi-500.otf": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f4eba8edcba58378c12dc6_Satoshi-Medium.otf",
+    "satoshi-700.otf": "https://cdn.prod.website-files.com/66f4c90bc0e226cdc99190a7/66f4eba80e750d73c87181a4_Satoshi-Bold.otf"
+  }
+}

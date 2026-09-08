@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { editOf } from '../editable'
+import { editOf, useColumnAttrs } from '../editable'
 import {
   Body,
   Card,
@@ -29,6 +29,7 @@ import {
   image,
   repeater,
   richtext,
+  columnStyleFields,
   schema,
   select,
   slider,
@@ -115,19 +116,22 @@ const splitFields = [
   select('imageRatio', 'Image ratio', [['landscape', '4:3'], ['wide', '16:9'], ['square', '1:1'], ['portrait', '3:4'], ['tall', '4:5']], 'design'),
   select('splitRatio', 'Column ratio', [['even', 'Even'], ['media', 'Wider media'], ['copy', 'Wider copy']], 'layout'),
   toggle('roundedMedia', 'Rounded media', 'design'),
+  ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
 ]
 
 const SPLIT_RATIOS: Record<string, string> = { even: '1fr 1fr', media: '0.85fr 1.15fr', copy: '1.15fr 0.85fr' }
 
 function SplitContent({ props, reverse }: { props: Record<string, unknown>; reverse: boolean }) {
   const edit = editOf(props)
+  const copyCol = useColumnAttrs('copyColumn')
+  const mediaCol = useColumnAttrs('mediaColumn')
   return (
     <SectionShell props={props} tone="default">
       <div
         className={cx('ud-split', reverse && 'ud-split--reverse')}
         style={{ '--ud-split': SPLIT_RATIOS[str(props.splitRatio, 'even')] || SPLIT_RATIOS.even } as CSSProperties}
       >
-        <div>
+        <div {...copyCol}>
           <SectionHead props={props} center={false} />
           <SafeText
             value={props.body}
@@ -145,7 +149,7 @@ function SplitContent({ props, reverse }: { props: Record<string, unknown>; reve
           ) : null}
           <CtaGroup props={props} />
         </div>
-        <div className="ud-split__media">
+        <div className="ud-split__media" {...mediaCol}>
           <Media
             src={props.image}
             alt={str(props.imageAlt)}

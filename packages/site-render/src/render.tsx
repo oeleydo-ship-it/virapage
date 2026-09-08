@@ -93,6 +93,17 @@ export function renderSiteDocument(input: RenderSiteInput): string {
     livechat?.enabled && livechat.script_url
       ? `\n<script src="${attr(livechat.script_url)}" async></script>`
       : "";
+
+  /**
+   * Basic first-party page-view analytics: a fire-and-forget beacon posted
+   * to this same origin, so it works unmodified on any connected custom
+   * domain and needs no site id written into the page. sendBeacon survives
+   * the page unloading before a normal fetch would finish; the fetch
+   * fallback (older Safari, or an environment without it) is best-effort and
+   * never allowed to block or throw.
+   */
+  const trackingTag = `
+<script>(function(){try{var u="/api/v1/public/track",d=JSON.stringify({path:location.pathname,referrer:document.referrer});if(navigator.sendBeacon){navigator.sendBeacon(u,new Blob([d],{type:"application/json"}))}else{fetch(u,{method:"POST",headers:{"Content-Type":"application/json"},body:d,keepalive:true}).catch(function(){})}}catch(e){}})();</script>`;
   const themeStyle = styleAttribute(themeTokensToStyle(tokens) as Record<string, unknown>);
 
   // The data the client needs to hydrate the identical tree. Serialised with
@@ -140,7 +151,7 @@ ${head}
 <body class="min-h-full antialiased">
 <div id="site-root">${body}</div>
 <script id="site-data" type="application/json">${hydrationData}</script>${funnelTag}
-<script src="${attr(runtimeBase)}/site.js" defer></script>${livechatTag}
+<script src="${attr(runtimeBase)}/site.js" defer></script>${livechatTag}${trackingTag}
 </body>
 </html>
 `;

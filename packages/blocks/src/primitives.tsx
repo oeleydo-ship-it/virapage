@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { EditableImage, EditableRich, EditableText, EDIT_PROP, editOf, type EditBinding, type EditPath } from './editable'
+import { EditableImage, EditableRich, EditableText, EDIT_PROP, editOf, useColumnAttrs, useElementStyle, type EditBinding, type EditPath } from './editable'
 import { Icon } from './icons'
 import { markdownBoldToHtml, sanitizeRichText } from './sanitize'
 import { ANIMATION_IDS } from './schema'
@@ -634,6 +634,7 @@ export function Button({
   disabled,
   className,
   style,
+  stylePath,
 }: {
   children: ReactNode
   href?: string
@@ -645,7 +646,20 @@ export function Button({
   disabled?: boolean
   className?: string
   style?: CSSProperties
+  /**
+   * Where this button's appearance is stored, e.g. `['buttonLabel', '$box']`.
+   * Reading it here rather than at the call site keeps the hook order stable
+   * for the many buttons that render conditionally.
+   */
+  stylePath?: EditPath
 }) {
+  // Called unconditionally; an empty path simply resolves to no stored style.
+  const box = useElementStyle(stylePath ?? [])
+  // useElementStyle fills every key, so undefined entries are dropped rather
+  // than allowed to clobber a style the block passed in itself.
+  const stored = box ? Object.fromEntries(Object.entries(box).filter(([, v]) => v !== undefined)) : undefined
+  style = stored ? { ...style, ...stored } : style
+
   if (_type) {
     return (
       <button className={cx('ud-btn', `ud-btn--${variant}`, className)} type={_type} disabled={disabled} style={style}>
@@ -765,6 +779,7 @@ export function Media({
   children,
   edit,
   path,
+  styleKey,
 }: {
   src?: unknown
   alt?: string
@@ -776,6 +791,12 @@ export function Media({
   children?: ReactNode
   edit?: EditBinding
   path?: EditPath
+  /**
+   * Marks this frame as a styleable column, so a split block whose side is the
+   * image itself can carry column appearance without a wrapper element that
+   * would break the grid's child sizing.
+   */
+  styleKey?: string
 }) {
   const url = str(src)
   // In edit mode a click must open the image picker, not the viewer, so the
@@ -796,6 +817,7 @@ export function Media({
     <div
       className={cx('ud-media-box', zoom && 'ud-media-box--zoom', canOpen && 'ud-media-box--lightbox', className)}
       style={{ aspectRatio: RATIOS[ratio] || ratio, ...style }}
+      data-ud-style={styleKey}
     >
       {url ? (
         <img
@@ -830,6 +852,66 @@ export function Media({
             document.body,
           )
         : null}
+    </div>
+  )
+}
+
+/**
+ * An uploaded brand logo, falling back to whatever wordmark the kit draws.
+ *
+ * Kits keep their own lockup - a paw, a monogram, a text wordmark - and pass it
+ * as `children`; this only takes over once someone uploads an image, so a
+ * template looks unchanged until it is given a logo.
+ */
+export function BrandLogo({
+  props,
+  field = 'logoImage',
+  heightField = 'logoHeight',
+  alt,
+  className,
+  children,
+}: {
+  props: Props
+  field?: string
+  heightField?: string
+  alt?: string
+  className?: string
+  children?: ReactNode
+}) {
+  const edit = editOf(props)
+  const src = str(props[field])
+  if (!src) return <>{children}</>
+  const height = optNum(props[heightField])
+  return (
+    <span className={cx('ud-brand-logo', className)} style={height !== undefined ? { '--ud-logo-h': `${height}px` } as CSSProperties : undefined}>
+      <img src={src} alt={alt || 'Logo'} />
+      {edit ? <EditableImage edit={edit} path={[field]} current={src} label="Replace logo" /> : null}
+    </span>
+  )
+}
+
+/**
+ * One side of a split section, carrying its own editable appearance.
+ *
+ * Wrapping the hook in a component rather than calling `useColumnAttrs` in the
+ * block keeps the hook order safe in blocks that return early for an alternate
+ * layout, and lets a column be added by swapping a `<div>` for this.
+ */
+export function Column({
+  name,
+  className,
+  style,
+  children,
+}: {
+  name: string
+  className?: string
+  style?: CSSProperties
+  children?: ReactNode
+}) {
+  const saved = useColumnAttrs(name)
+  return (
+    <div className={className} style={{ ...style, ...saved.style }} data-ud-style={name}>
+      {children}
     </div>
   )
 }

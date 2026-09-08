@@ -15,6 +15,25 @@ export type EditPath = Array<string | number>
 
 export type ElementTextStyle = {
   backgroundColor?: string
+  /**
+   * Which of the background inputs below actually paints. Absent means the
+   * legacy behaviour - `backgroundColor` alone - so styles saved before column
+   * backgrounds existed keep rendering exactly as they did.
+   */
+  backgroundType?: 'color' | 'gradient' | 'image'
+  gradientFrom?: string
+  gradientTo?: string
+  gradientAngle?: number
+  backgroundImage?: string
+  backgroundSize?: string
+  backgroundPosition?: string
+  backgroundRepeat?: string
+  /** Laid over a background image so text stays readable on busy photos. */
+  overlayColor?: string
+  overlayOpacity?: number
+  minHeight?: number
+  /** Vertical placement of the column's own content once it has a min height. */
+  justifyContent?: string
   borderColor?: string
   borderWidth?: number
   borderRadius?: number
@@ -78,6 +97,43 @@ export function pathId(path: EditPath): string {
   return path.map(String).join('.')
 }
 
+/**
+ * Turns the stored background inputs into `background-image` layers.
+ *
+ * Returns undefined for the colour case so `backgroundColor` keeps painting on
+ * its own - stacking an image layer on top of it would hide it.
+ */
+export function backgroundLayers(
+  value: ElementTextStyle,
+): { image: string; size?: string; position?: string; repeat?: string } | undefined {
+  if (value.backgroundType === 'gradient') {
+    const from = value.gradientFrom || 'var(--color-primary, #2563eb)'
+    const to = value.gradientTo || 'var(--color-secondary, #0f172a)'
+    const angle = typeof value.gradientAngle === 'number' && Number.isFinite(value.gradientAngle) ? value.gradientAngle : 135
+    return { image: `linear-gradient(${angle}deg, ${from}, ${to})` }
+  }
+  if (value.backgroundType === 'image') {
+    const src = (value.backgroundImage || '').trim()
+    if (!src) return undefined
+    const layers: string[] = []
+    const opacity = Math.min(Math.max(value.overlayOpacity ?? 0, 0), 100)
+    if (opacity > 0) {
+      // Two identical stops render a flat wash; a gradient is the only way to
+      // lay a colour over an image within a single background-image list.
+      const tint = `color-mix(in srgb, ${value.overlayColor || '#0f172a'} ${opacity}%, transparent)`
+      layers.push(`linear-gradient(${tint}, ${tint})`)
+    }
+    layers.push(`url("${src.replace(/"/g, '')}")`)
+    return {
+      image: layers.join(', '),
+      size: value.backgroundSize || 'cover',
+      position: value.backgroundPosition || 'center',
+      repeat: value.backgroundRepeat || 'no-repeat',
+    }
+  }
+  return undefined
+}
+
 export function useElementStyle(path: EditPath): CSSProperties | undefined {
   const styles = useContext(ElementStyleContext)
   const value = styles[pathId(path)]
@@ -85,8 +141,19 @@ export function useElementStyle(path: EditPath): CSSProperties | undefined {
   const fontSize = typeof value.fontSize === 'number' && Number.isFinite(value.fontSize) ? `${value.fontSize}px` : undefined
   const lineHeight = typeof value.lineHeight === 'number' && Number.isFinite(value.lineHeight) ? value.lineHeight : undefined
   const letterSpacing = typeof value.letterSpacing === 'number' && Number.isFinite(value.letterSpacing) ? `${value.letterSpacing}px` : undefined
+  const layers = backgroundLayers(value)
   return {
     backgroundColor: value.backgroundColor || undefined,
+    backgroundImage: layers?.image,
+    backgroundSize: layers?.size,
+    backgroundPosition: layers?.position,
+    backgroundRepeat: layers?.repeat,
+    minHeight: value.minHeight,
+    // Only meaningful once the column is taller than its content, which is
+    // exactly when a min height has been set.
+    display: value.minHeight !== undefined && value.justifyContent ? 'flex' : undefined,
+    flexDirection: value.minHeight !== undefined && value.justifyContent ? 'column' : undefined,
+    justifyContent: value.minHeight !== undefined ? value.justifyContent || undefined : undefined,
     borderColor: value.borderColor || undefined,
     borderWidth: value.borderWidth,
     borderStyle: value.borderWidth !== undefined ? 'solid' : undefined,
@@ -108,6 +175,19 @@ export function useElementStyle(path: EditPath): CSSProperties | undefined {
     fontStyle: value.fontStyle === 'italic' ? 'italic' : undefined,
     textDecoration: value.textDecoration === 'underline' ? 'underline' : undefined,
   }
+}
+
+/**
+ * Everything a split block's column element needs: the saved appearance as an
+ * inline style, plus the attribute the responsive layer targets for per-device
+ * overrides. Spread onto the column's own element.
+ *
+ * Call it unconditionally at the top of the component like any other hook - an
+ * unset column simply resolves to no style.
+ */
+export function useColumnAttrs(key: string): { 'data-ud-style': string; style: CSSProperties | undefined } {
+  const style = useElementStyle([key])
+  return { 'data-ud-style': key, style }
 }
 
 function plainText(node: HTMLElement): string {

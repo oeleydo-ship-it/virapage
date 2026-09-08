@@ -22,6 +22,7 @@ import {
   CtaGroup,
   Grid,
   Heading,
+  Column,
   Media,
   SafeText,
   SectionShell,
@@ -43,6 +44,7 @@ import {
   navLinksField,
   primaryCtaFields,
   repeater,
+  columnStyleFields,
   schema,
   stickyField,
   text,
@@ -233,13 +235,15 @@ export const heroLifesure = defineBlock({
     secondaryUrl: '#',
     image: '',
   },
-  schema: schema(eyebrowField, headingField, descriptionField, ...primaryCtaFields, text('secondaryLabel', 'Secondary label'), link('secondaryUrl', 'Secondary link'), image('image', 'Image')),
+  schema: schema(eyebrowField, headingField, descriptionField, ...primaryCtaFields, text('secondaryLabel', 'Secondary label'), link('secondaryUrl', 'Secondary link'), image('image', 'Image'),
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
+  ),
   component: function HeroLifesure(props) {
     const edit = editOf(props)
     return (
       <SectionShell props={props} tone="primary" className="ud-ls ud-ls-hero">
         <div className="ud-split">
-          <div className="ud-ls-hero__copy">
+          <Column name="copyColumn" className="ud-ls-hero__copy">
             <EditableText edit={edit} path={['eyebrow']} value={str(props.eyebrow)} as="p" className="ud-ls-hero__eyebrow" placeholder="Eyebrow" />
             <EditableText edit={edit} path={['heading']} value={str(props.heading)} as="h1" className="ud-ls-title ud-ls-title--xl" placeholder="Headline" />
             {str(props.description) || edit ? (
@@ -258,10 +262,10 @@ export const heroLifesure = defineBlock({
                 </Button>
               ) : null}
             </div>
-          </div>
-          <div className="ud-split__media">
+          </Column>
+          <Column name="mediaColumn" className="ud-split__media">
             <Media src={props.image} alt={str(props.heading)} ratio="square" className="ud-ls-hero__img" edit={edit} path={['image']} />
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )
@@ -340,6 +344,8 @@ export const aboutLifesure = defineBlock({
     ...primaryCtaFields,
     image('image', 'Image'),
     repeater('stats', 'Counters', [icon('icon', 'Icon'), text('value', 'Value'), text('label', 'Label')], { itemLabel: 'Counter' }),
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: function AboutLifesure(props) {
     const edit = editOf(props)
@@ -347,12 +353,12 @@ export const aboutLifesure = defineBlock({
     return (
       <SectionShell props={props} tone="surface" className="ud-ls ud-ls-about">
         <div className="ud-split">
-          <div className="ud-ls-about__panel">
+          <Column name="copyColumn" className="ud-ls-about__panel">
             <LsHead props={props} />
             <CheckList values={lines(props.checklist)} edit={edit} path={['checklist']} />
             <CtaGroup props={props} primaryVariant="primary" className="ud-ls-about__cta" />
-          </div>
-          <div className="ud-ls-about__panel">
+          </Column>
+          <Column name="mediaColumn" className="ud-ls-about__panel">
             <Media src={props.image} alt={str(props.heading)} ratio="wide" edit={edit} path={['image']} style={{ marginBottom: 16 }} />
             <Grid cols={2} gap={16}>
               {stats.map((stat, index) => (
@@ -363,7 +369,7 @@ export const aboutLifesure = defineBlock({
                 </div>
               ))}
             </Grid>
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )

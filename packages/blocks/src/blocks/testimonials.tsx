@@ -7,6 +7,7 @@ import {
   Avatar,
   Body,
   Card,
+  Column,
   CtaGroup,
   Media,
   SafeText,
@@ -19,7 +20,7 @@ import {
   num,
   str,
 } from '../primitives'
-import { columnsField, ctaFields, field, gapField, headFields, image, repeater, schema, select, text, toggle } from '../schema'
+import { columnStyleFields, columnsField, ctaFields, field, gapField, headFields, image, repeater, schema, select, text, toggle } from '../schema'
 import { defineBlock } from '../types'
 
 const quotes = [
@@ -306,9 +307,9 @@ export const testimonialsFeatured = defineBlock({
       <SectionShell props={props} tone="dark">
         <div className="ud-split">
           {copy}
-          <div className="ud-split__media">
+          <Column name="mediaColumn" className="ud-split__media">
             <Media src={props.image} alt={str(props.name)} ratio="square" edit={editOf(props)} path={['image']} />
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )

@@ -19,6 +19,7 @@ import { Icon } from '../icons'
 import {
   Button,
   Card,
+  Column,
   CheckList,
   CtaGroup,
   Grid,
@@ -51,6 +52,7 @@ import {
   navLinksField,
   primaryCtaFields,
   repeater,
+  columnStyleFields,
   schema,
   slider,
   stickyField,
@@ -321,6 +323,8 @@ export const introCuralo = defineBlock({
     }),
     image('image', 'Image'),
     ...primaryCtaFields,
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: function IntroCuralo(props) {
     const edit = editOf(props)
@@ -328,7 +332,7 @@ export const introCuralo = defineBlock({
     return (
       <SectionShell props={props} tone="default" className="ud-cu ud-cu-intro">
         <div className="ud-split">
-          <div>
+          <Column name="copyColumn">
             <SectionHead props={props} center={false} />
             {rows.length ? (
               <ul className="ud-list" style={{ marginTop: 24 }}>
@@ -341,10 +345,10 @@ export const introCuralo = defineBlock({
               </ul>
             ) : null}
             <CtaGroup props={props} primaryVariant="accent" />
-          </div>
-          <div className="ud-split__media">
+          </Column>
+          <Column name="mediaColumn" className="ud-split__media">
             <Media src={props.image} alt={str(props.heading)} ratio="portrait" edit={edit} path={['image']} />
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )

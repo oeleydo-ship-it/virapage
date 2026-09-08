@@ -51,6 +51,7 @@ test-results/
 tmp-*.html
 tmp-*.txt
 tmp-*.mjs
+tmp-*.css
 tmp-upload-probe/
 
 # Front-end build output. Produced by `pnpm build` on deploy and served by

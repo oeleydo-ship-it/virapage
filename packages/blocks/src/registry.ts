@@ -1,4 +1,8 @@
+import { pawberryBlocks } from './blocks/pawberry'
+import { sproutkindBlocks } from './blocks/sproutkind'
 import { concourseBlocks } from './blocks/concourse'
+import { lexaraBlocks } from './blocks/lexara'
+import { marigoldBlocks } from './blocks/marigold'
 import type { BlockCategory } from '@uidesired/types'
 import { quarryBlocks } from './blocks/quarry'
 import { formaBlocks } from './blocks/forma'
@@ -544,7 +548,11 @@ import {
 import type { BlockDefinition } from './types'
 
 const blocks = [
+  ...pawberryBlocks,
+  ...sproutkindBlocks,
   ...concourseBlocks,
+  ...lexaraBlocks,
+  ...marigoldBlocks,
   generatedNav,
   navbarSimple,
   navbarCentered,

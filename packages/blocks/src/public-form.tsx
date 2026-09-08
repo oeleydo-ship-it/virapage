@@ -112,6 +112,14 @@ export function PublicForm({
   const turnstileContainerRef = useRef<HTMLDivElement | null>(null)
   const turnstileTokenRef = useRef<HTMLInputElement | null>(null)
   const turnstileWidgetRef = useRef<string | number | null>(null)
+  // When the form became interactive, so a submission that arrives sooner
+  // than a person could plausibly read the fields and type into them can be
+  // told apart from a script that POSTed straight to the endpoint.
+  const mountedAtRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    mountedAtRef.current = performance.now()
+  }, [])
 
   useEffect(() => {
     if (!formId) return
@@ -220,6 +228,7 @@ export function PublicForm({
     const payload: Record<string, unknown> = Object.fromEntries(data.entries())
     payload.website = String(payload.website || '')
     if (pageId) payload.page_id = pageId
+    if (mountedAtRef.current !== null) payload.elapsedMs = Math.round(performance.now() - mountedAtRef.current)
     try {
       let response: Response | null = null
       let json: Record<string, unknown> | null = null

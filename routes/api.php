@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\AdminMailSettingsController;
 use App\Http\Controllers\Api\V1\AdminPaymentGatewayController;
 use App\Http\Controllers\Api\V1\AdminStorageSettingsController;
 use App\Http\Controllers\Api\V1\AiController;
+use App\Http\Controllers\Api\V1\AnalyticsController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\BlockPresetController;
@@ -36,6 +37,7 @@ use App\Http\Controllers\Api\V1\PageController;
 use App\Http\Controllers\Api\V1\PreviewController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProfileController;
+use App\Http\Controllers\Api\V1\PublicAnalyticsController;
 use App\Http\Controllers\Api\V1\PublicBrandingController;
 use App\Http\Controllers\Api\V1\PublicCheckoutController;
 use App\Http\Controllers\Api\V1\PublicFunnelController;
@@ -103,6 +105,13 @@ Route::prefix('v1')->group(function () {
         ->middleware('throttle:public-forms');
     Route::post('/public/forms/{publicForm}/submit', [FormController::class, 'submit'])
         ->middleware('throttle:public-forms');
+
+    // Fired once by a tiny inline script on every published page (see
+    // packages/site-render/src/render.tsx). Resolved by Host header exactly
+    // like the page itself was, so it works unmodified on any connected
+    // custom domain - no site id needs to be embedded in the page for it.
+    Route::post('/public/track', [PublicAnalyticsController::class, 'track'])
+        ->middleware('throttle:public-track');
 
     Route::middleware(['throttle:public-livechat'])->group(function () {
         Route::match(['GET', 'OPTIONS'], '/public/livechat/{publicKey}', [PublicLivechatController::class, 'show']);
@@ -207,6 +216,7 @@ Route::prefix('v1')->group(function () {
                 Route::post('/sites/{site}/restore', [SiteController::class, 'restore']);
                 Route::get('/sites/{site}/settings', [SiteController::class, 'settings']);
                 Route::put('/sites/{site}/settings', [SiteController::class, 'updateSettings']);
+                Route::get('/sites/{site}/analytics', [AnalyticsController::class, 'summary']);
                 // A workspace's own product catalogue and its own Stripe account.
                 // Nothing here touches the platform gateway the super admin owns.
                 Route::get('/orders', [OrderController::class, 'index']);

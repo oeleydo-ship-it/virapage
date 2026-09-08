@@ -7,6 +7,7 @@ import {
   CheckList,
   CtaGroup,
   Grid,
+  Column,
   Media,
   SafeText,
   SectionHead,
@@ -19,7 +20,7 @@ import {
   num,
   str,
 } from '../primitives'
-import { ctaFields, field, headFields, icon, image, link, primaryCtaFields, repeater, schema, select, text, toggle } from '../schema'
+import { columnStyleFields, ctaFields, field, headFields, icon, image, link, primaryCtaFields, repeater, schema, select, text, toggle } from '../schema'
 import { defineBlock } from '../types'
 
 function youtubeId(value: string): string | null {
@@ -92,6 +93,8 @@ export const contentVideo = defineBlock({
     select('layout', 'Layout', [['split', 'Copy + video'], ['featured', 'Full-width video']], 'layout'),
     toggle('reverse', 'Video on the left', 'layout'),
     ...ctaFields,
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: (props) => {
     const edit = editOf(props)
@@ -129,14 +132,14 @@ export const contentVideo = defineBlock({
           </div>
         ) : (
           <div className={bool(props.reverse) ? 'ud-split ud-split--reverse' : 'ud-split'}>
-            <div>
+            <Column name="copyColumn">
               <SectionHead props={props} defaultHeading="Watch" center={false} />
               <div style={{ marginTop: 22 }}>
                 <CheckList values={lines(props.bullets)} edit={edit} path={['bullets']} />
               </div>
               <CtaGroup props={props} />
-            </div>
-            <div className="ud-split__media">{media}</div>
+            </Column>
+            <Column name="mediaColumn" className="ud-split__media">{media}</Column>
           </div>
         )}
       </SectionShell>
@@ -183,6 +186,8 @@ export const contentHours = defineBlock({
       itemDefaults: { day: 'Monday', hours: '09:00 – 17:00' },
     }),
     ...ctaFields,
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: (props) => {
     const edit = editOf(props)
@@ -190,7 +195,7 @@ export const contentHours = defineBlock({
     return (
       <SectionShell props={props} tone="surface">
         <div className="ud-split">
-          <div>
+          <Column name="copyColumn">
             <SectionHead props={props} defaultHeading="Hours" center={false} />
             <div className="ud-hours" style={{ marginTop: 28 }}>
               {rows.map((row, index) => (
@@ -228,10 +233,10 @@ export const contentHours = defineBlock({
               ) : null}
             </div>
             <CtaGroup props={props} />
-          </div>
-          <div className="ud-split__media">
+          </Column>
+          <Column name="mediaColumn" className="ud-split__media">
             <Media src={props.image} alt={str(props.address, 'Location')} ratio="landscape" edit={edit} path={['image']} />
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )
@@ -626,7 +631,7 @@ export const contentSkills = defineBlock({
     return (
       <SectionShell props={props} tone="default">
         <div className={cx('ud-split', bool(props.reverse) && 'ud-split--reverse')}>
-          <div className="ud-split__media">
+          <Column name="mediaColumn" className="ud-split__media">
             <Media
               src={props.image}
               alt={str(props.imageAlt)}
@@ -634,7 +639,7 @@ export const contentSkills = defineBlock({
               edit={edit}
               path={['image']}
             />
-          </div>
+          </Column>
           <div>
             <SectionHead props={props} defaultHeading="Skills" center={false} />
             <div className="ud-skills" style={{ marginTop: 28 }}>

@@ -224,6 +224,48 @@ it('rejects honeypot, missing fields, unverified recipients, and failed turnstil
     expect(FormSubmission::query()->count())->toBe(0);
 });
 
+it('rejects a submission that arrives faster than a person could fill the form, but accepts one with no timing at all', function () {
+    ['user' => $user, 'workspace' => $workspace] = tenant();
+    Sanctum::actingAs($user);
+    $headers = ['X-Workspace-Id' => (string) $workspace->id];
+
+    $site = $this->withHeaders($headers)
+        ->postJson('/api/v1/sites', ['name' => 'Timing Site', 'subdomain' => 'timingsite'])
+        ->json('data');
+    $formId = Form::query()->where('site_id', $site['id'])->where('type', 'contact')->value('id');
+
+    // A script that skips rendering the page and POSTs straight to the
+    // endpoint reports an implausibly low fill time.
+    $this->postJson('/api/v1/public/forms/'.$formId.'/submit', [
+        'name' => 'Bot',
+        'email' => 'bot@example.com',
+        'message' => 'spam',
+        'website' => '',
+        'elapsedMs' => 40,
+    ])->assertStatus(422);
+    expect(FormSubmission::query()->count())->toBe(0);
+
+    // An older cached page (or a direct integration) that never sends the
+    // field at all must not be penalised for its absence.
+    $this->postJson('/api/v1/public/forms/'.$formId.'/submit', [
+        'name' => 'Ada',
+        'email' => 'ada@example.com',
+        'message' => 'Hi, quick question.',
+        'website' => '',
+    ])->assertCreated();
+
+    // A plausible fill time is accepted.
+    $this->postJson('/api/v1/public/forms/'.$formId.'/submit', [
+        'name' => 'Robin',
+        'email' => 'robin@example.com',
+        'message' => 'Hi, quick question.',
+        'website' => '',
+        'elapsedMs' => 4000,
+    ])->assertCreated();
+
+    expect(FormSubmission::query()->count())->toBe(2);
+});
+
 it('does not strand public forms when turnstile keys are not configured', function () {
     ['user' => $user, 'workspace' => $workspace] = tenant();
     Sanctum::actingAs($user);

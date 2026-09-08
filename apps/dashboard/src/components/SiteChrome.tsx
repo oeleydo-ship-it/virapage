@@ -3,6 +3,7 @@ import { cn } from '@uidesired/utilities'
 
 const TABS = [
   { suffix: 'settings', label: 'General' },
+  { suffix: 'analytics', label: 'Analytics' },
   { suffix: 'seo', label: 'SEO' },
   { suffix: 'theme', label: 'Theme' },
   { suffix: 'navigation', label: 'Navigation' },

@@ -1,6 +1,6 @@
 import type { BlockField } from '@uidesired/types'
 import type { ElementStyleMap, ElementTextStyle } from './editable'
-import { pathId, type EditPath } from './editable'
+import { backgroundLayers, pathId, type EditPath } from './editable'
 import { quoteFontStack } from './theme'
 
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile'
@@ -212,6 +212,19 @@ function elementDecls(style: ElementTextStyle): string {
     if (typeof style[key] === 'number' && Number.isFinite(style[key])) decls.push(`${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${style[key]}px !important`)
   }
   if (style.borderWidth !== undefined) decls.push('border-style:solid !important')
+  const layers = backgroundLayers(style)
+  if (layers) {
+    decls.push(`background-image:${layers.image} !important`)
+    if (layers.size) decls.push(`background-size:${layers.size} !important`)
+    if (layers.position) decls.push(`background-position:${layers.position} !important`)
+    if (layers.repeat) decls.push(`background-repeat:${layers.repeat} !important`)
+  }
+  if (typeof style.minHeight === 'number' && Number.isFinite(style.minHeight)) {
+    decls.push(`min-height:${style.minHeight}px !important`)
+    if (style.justifyContent) {
+      decls.push('display:flex !important', 'flex-direction:column !important', `justify-content:${style.justifyContent} !important`)
+    }
+  }
   if (style.color) decls.push(`color:${style.color} !important`)
   if (style.fontFamily) decls.push(`font-family:${quoteFontStack(style.fontFamily)} !important`)
   if (typeof style.fontSize === 'number') decls.push(`font-size:${style.fontSize}px !important`)

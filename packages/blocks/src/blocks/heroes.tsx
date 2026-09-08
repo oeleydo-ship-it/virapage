@@ -5,6 +5,7 @@ import {
   Avatar,
   Body,
   Card,
+  Column,
   CheckList,
   CtaGroup,
   Heading,
@@ -32,6 +33,7 @@ import {
   icon,
   image,
   repeater,
+  columnStyleFields,
   schema,
   select,
   slider,
@@ -163,6 +165,8 @@ export const heroSplit = defineBlock({
     ...mediaFields,
     toggle('reverse', 'Image on the left', 'layout'),
     repeater('highlights', 'Highlights', [text('label', 'Label')], { itemLabel: 'Highlight', itemDefaults: { label: 'New highlight' } }),
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: (props) => {
     const highlightItems = items(props.highlights, [])
@@ -171,7 +175,7 @@ export const heroSplit = defineBlock({
     return (
       <SectionShell props={props} tone="default">
         <div className={cx('ud-split', bool(props.reverse) && 'ud-split--reverse')}>
-          <div>
+          <Column name="copyColumn">
             <HeroCopy props={props} />
             {highlights.length ? (
               <div style={{ marginTop: 28 }}>
@@ -191,8 +195,8 @@ export const heroSplit = defineBlock({
                 </ul>
               </div>
             ) : null}
-          </div>
-          <div className="ud-split__media">
+          </Column>
+          <Column name="mediaColumn" className="ud-split__media">
             <Media
               src={props.image}
               alt={str(props.imageAlt)}
@@ -200,7 +204,7 @@ export const heroSplit = defineBlock({
               edit={editOf(props)}
               path={['image']}
             />
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )
@@ -671,17 +675,19 @@ export const heroBusiness = defineBlock({
     text('reviewer', 'Reviewer name'),
     text('reviewerRole', 'Reviewer role'),
     image('reviewerAvatar', 'Reviewer photo'),
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: (props) => (
     <SectionShell props={props} tone="default">
       <div className="ud-split" style={{ '--ud-split': '1.08fr 0.92fr' } as CSSProperties}>
-        <div>
+        <Column name="copyColumn">
           <HeroCopy props={props} />
           <div style={{ marginTop: 28 }}>
             <CheckList values={lines(props.bullets)} edit={editOf(props)} path={['bullets']} />
           </div>
-        </div>
-        <div className="ud-split__media ud-stack" style={{ '--ud-gap': '18px' } as CSSProperties}>
+        </Column>
+        <Column name="mediaColumn" className="ud-split__media ud-stack" style={{ '--ud-gap': '18px' } as CSSProperties}>
           <Card>
             <IconBadge name={str(props.cardIcon, 'target')} solid />
             <EditableText
@@ -729,7 +735,7 @@ export const heroBusiness = defineBlock({
               </div>
             </Card>
           ) : null}
-        </div>
+        </Column>
       </div>
     </SectionShell>
   ),

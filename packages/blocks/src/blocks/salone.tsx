@@ -23,6 +23,7 @@ import {
   Grid,
   Heading,
   IconBadge,
+  Column,
   Media,
   SafeText,
   SectionShell,
@@ -43,6 +44,7 @@ import {
   navLinksField,
   primaryCtaFields,
   repeater,
+  columnStyleFields,
   schema,
   stickyField,
   text,
@@ -235,6 +237,8 @@ export const heroSalone = defineBlock({
     text('emailLabel', 'Email label'),
     text('email', 'Email'),
     repeater('images', 'Slides', [image('image', 'Image')], { itemLabel: 'Slide' }),
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: function HeroSalone(props) {
     const edit = editOf(props)
@@ -243,7 +247,7 @@ export const heroSalone = defineBlock({
     return (
       <SectionShell props={props} tone="surface" className="ud-sal ud-sal-hero">
         <div className="ud-split ud-sal-hero__grid">
-          <div className="ud-sal-hero__copy">
+          <Column name="copyColumn" className="ud-sal-hero__copy">
             <Kicker props={props} />
             <EditableText edit={edit} path={['heading']} value={str(props.heading)} as="h1" className="ud-sal-title ud-sal-title--xl" placeholder="Headline" />
             <div className="ud-sal-hero__contacts">
@@ -270,10 +274,10 @@ export const heroSalone = defineBlock({
                 </div>
               ) : null}
             </div>
-          </div>
-          <div className="ud-split__media">
+          </Column>
+          <Column name="mediaColumn" className="ud-split__media">
             <HeroCarousel props={props} />
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )
@@ -353,6 +357,8 @@ export const aboutSalone = defineBlock({
     descriptionField,
     repeater('stats', 'Counters', [icon('icon', 'Icon'), text('value', 'Value'), text('label', 'Label')], { itemLabel: 'Counter' }),
     ...primaryCtaFields,
+  
+    ...columnStyleFields(['copyColumn', 'Copy column'], ['mediaColumn', 'Media column']),
   ),
   component: function AboutSalone(props) {
     const edit = editOf(props)
@@ -361,7 +367,7 @@ export const aboutSalone = defineBlock({
     return (
       <SectionShell props={props} tone="default" className="ud-sal ud-sal-about">
         <div className="ud-split">
-          <div>
+          <Column name="copyColumn">
             <Media src={props.image} alt={str(props.heading)} ratio="landscape" edit={edit} path={['image']} style={{ marginBottom: 20 }} />
             {phone || edit ? (
               <div className="ud-sal-callout">
@@ -374,8 +380,8 @@ export const aboutSalone = defineBlock({
                 </div>
               </div>
             ) : null}
-          </div>
-          <div>
+          </Column>
+          <Column name="mediaColumn">
             <SalHead props={props} />
             {stats.length ? (
               <Grid cols={2} gap={16} style={{ marginTop: 8, marginBottom: 28 }}>
@@ -389,7 +395,7 @@ export const aboutSalone = defineBlock({
               </Grid>
             ) : null}
             <CtaGroup props={props} primaryVariant="primary" />
-          </div>
+          </Column>
         </div>
       </SectionShell>
     )

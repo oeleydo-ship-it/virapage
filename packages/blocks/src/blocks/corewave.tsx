@@ -18,7 +18,7 @@
  * recolours from theme tokens instead of hard-coded styling.
  */
 import { useState, type CSSProperties } from 'react'
-import { EditableImage, EditableText, editOf } from '../editable'
+import { EditableImage, EditableText, editOf, useElementStyle } from '../editable'
 import { Icon } from '../icons'
 import { Button, Grid, Heading, Media, SafeText, SectionShell, Stars, bool, cx, items, sectionVars, str } from '../primitives'
 import {
@@ -122,7 +122,7 @@ export const navbarCorewave = defineBlock({
     navLinksField('links', 'Links'),
     text('secondaryLabel', 'Secondary link label'),
     link('secondaryUrl', 'Secondary link'),
-    text('buttonLabel', 'Button label'),
+    text('buttonLabel', 'Button label', { styleTarget: 'button' }),
     link('buttonUrl', 'Button link'),
     stickyField,
   ),
@@ -145,7 +145,7 @@ export const navbarCorewave = defineBlock({
           </nav>
           <div className="ud-cw-nav__end">
             {str(props.buttonLabel) || edit ? (
-              <Button href={str(props.buttonUrl, '#')} variant="primary" className="ud-cw-nav__cta">
+              <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="primary" className="ud-cw-nav__cta">
                 <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
               </Button>
             ) : null}
@@ -225,7 +225,7 @@ export const heroCorewave = defineBlock({
     headingField,
     text('headingHighlight', 'Highlighted phrase'),
     text('headingEnd', 'Heading — after the highlight'),
-    text('buttonLabel', 'Button label'),
+    text('buttonLabel', 'Button label', { styleTarget: 'button' }),
     link('buttonUrl', 'Button link'),
     repeater('items', 'Feature bullets', [icon('icon', 'Icon'), text('title', 'Title'), textarea('text', 'Description')], { itemLabel: 'Bullet' }),
   ),
@@ -243,7 +243,7 @@ export const heroCorewave = defineBlock({
             <EditableText edit={edit} path={['headingEnd']} value={str(props.headingEnd)} as="span" placeholder="…" />
           </h1>
           {str(props.buttonLabel) || edit ? (
-            <Button href={str(props.buttonUrl, '#')} variant="primary" className="ud-cw-hero__cta">
+            <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="primary" className="ud-cw-hero__cta">
               <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
               <Icon name="arrow" size={14} />
             </Button>
@@ -406,19 +406,21 @@ export const galleryCorewave = defineBlock({
     headingField,
     text('headingHighlight', 'Highlighted word (optional)'),
     text('headingEnd', 'Heading — after the highlight'),
-    text('moreLabel', '"See more" label'),
+    text('moreLabel', '"See more" label', { styleTarget: 'button' }),
     link('moreUrl', '"See more" link'),
     repeater('items', 'Projects', [image('image', 'Image'), text('title', 'Title'), text('category', 'Category'), link('url', 'Link')], { itemLabel: 'Project' }),
   ),
   component: function GalleryCorewave(props) {
     const edit = editOf(props)
     const rows = items(props.items, [])
+    // Hoisted: the link renders conditionally, so the hook cannot sit at its call site.
+    const moreStyle = useElementStyle(['moreLabel', '$box'])
     return (
       <SectionShell props={props} tone="default" className="ud-cw ud-cw-projects">
         <div className="ud-cw-projects__head">
           <CwHead props={props} align="left" />
           {str(props.moreLabel) || edit ? (
-            <a className="ud-cw-projects__more" href={str(props.moreUrl, '#')}>
+            <a className="ud-cw-projects__more" href={str(props.moreUrl, '#')} style={moreStyle}>
               <EditableText edit={edit} path={['moreLabel']} value={str(props.moreLabel)} placeholder="See more" />
               <Icon name="arrow" size={14} />
             </a>
@@ -689,6 +691,7 @@ export const footerCorewave = defineBlock({
     copyright: 'Corewave. All images are for demo purposes.',
   },
   schema: schema(
+    ...logoFields,
     repeater(
       'columns',
       'Link columns',
@@ -700,7 +703,7 @@ export const footerCorewave = defineBlock({
     text('email', 'Email'),
     text('communityHeading', 'Community card heading'),
     textarea('communityText', 'Community card text'),
-    text('communityButtonLabel', 'Community button label'),
+    text('communityButtonLabel', 'Community button label', { styleTarget: 'button' }),
     link('communityButtonUrl', 'Community button link'),
     repeater('social', 'Social links', [text('label', 'Label'), link('url', 'Link')], { itemLabel: 'Link' }),
     text('copyright', 'Copyright (after the ©)'),
@@ -748,7 +751,7 @@ export const footerCorewave = defineBlock({
               <EditableText edit={edit} path={['communityHeading']} value={str(props.communityHeading)} as="h3" placeholder="Heading" />
               <SafeText value={str(props.communityText)} edit={edit} path={['communityText']} placeholder="Description" />
               {str(props.communityButtonLabel) || edit ? (
-                <Button href={str(props.communityButtonUrl, '#')} variant="accent" className="ud-cw-footer__community-btn">
+                <Button stylePath={['communityButtonLabel', '$box']} href={str(props.communityButtonUrl, '#')} variant="accent" className="ud-cw-footer__community-btn">
                   <EditableText edit={edit} path={['communityButtonLabel']} value={str(props.communityButtonLabel)} placeholder="Button" />
                 </Button>
               ) : null}

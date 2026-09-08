@@ -120,7 +120,7 @@ export const navbarHavven = defineBlock({
     animation: 'fade-down',
     animationTrigger: 'load',
   },
-  schema: schema(...logoFields, navLinksField('links', 'Links'), text('buttonLabel', 'Button label'), link('buttonUrl', 'Button link'), stickyField),
+  schema: schema(...logoFields, navLinksField('links', 'Links'), text('buttonLabel', 'Button label', { styleTarget: 'button' }), link('buttonUrl', 'Button link'), stickyField),
   component: function NavbarHavven(props) {
     const edit = editOf(props)
     const [open, setOpen] = useState(false)
@@ -137,7 +137,7 @@ export const navbarHavven = defineBlock({
           </nav>
           <div className="ud-hv-nav__end">
             {str(props.buttonLabel) || edit ? (
-              <Button href={str(props.buttonUrl, '#')} variant="primary" className="ud-hv-nav__cta">
+              <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="primary" className="ud-hv-nav__cta">
                 <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
                 <span className="ud-hv-arrow" aria-hidden>
                   <Icon name="arrow" size={13} />
@@ -220,7 +220,7 @@ export const heroHavven = defineBlock({
     text('badgeLabel', 'Badge label'),
     headingField,
     descriptionField,
-    text('buttonLabel', 'Button label'),
+    text('buttonLabel', 'Button label', { styleTarget: 'button' }),
     link('buttonUrl', 'Button link'),
     text('reviewCount', 'Review count label'),
     text('reviewText', 'Review sub text'),
@@ -245,7 +245,7 @@ export const heroHavven = defineBlock({
               <SafeText value={str(props.description)} className="ud-hv-lead" edit={edit} path={['description']} placeholder="Supporting copy" />
             ) : null}
             {str(props.buttonLabel) || edit ? (
-              <Button href={str(props.buttonUrl, '#')} variant="primary" className="ud-hv-hero__cta">
+              <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="primary" className="ud-hv-hero__cta">
                 <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
                 <span className="ud-hv-arrow" aria-hidden>
                   <Icon name="arrow" size={14} />
@@ -786,6 +786,7 @@ export const footerHavven = defineBlock({
     copyright: 'Havven. All rights reserved.',
   },
   schema: schema(
+    ...logoFields,
     headingField,
     text('email', 'Email'),
     text('phone', 'Phone'),
@@ -844,6 +845,9 @@ export const footerHavven = defineBlock({
             ) : null}
           </div>
           <div className="ud-hv-footer__base">
+            <a className="ud-hv-footer__brand" href={str(props.logoUrl, '/')}>
+              <HavvenLogo props={props} />
+            </a>
             <a className="ud-hv-footer__top" href="#top" aria-label="Back to top">
               <Icon name="arrow" size={16} />
             </a>

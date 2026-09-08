@@ -885,6 +885,16 @@ export interface FunnelAnalytics {
   filters?: Record<string, unknown>
 }
 
+export interface SiteAnalytics {
+  range_days: number
+  views: number
+  uniques: number
+  top_pages: Array<{ path: string; views: number }>
+  top_referrers: Array<{ host: string; views: number }>
+  top_countries: Array<{ country: string; views: number }>
+  trend: Array<{ date: string; views: number; uniques: number }>
+}
+
 export interface FunnelDimension {
   label: string
   visitors: number

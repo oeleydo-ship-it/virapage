@@ -24,6 +24,7 @@ import { LivechatInboxPage } from './pages/LivechatPages'
 import { LivechatSettingsPage } from './pages/LivechatSettingsPage'
 import { SiteLivechatPage } from './pages/SiteLivechatPage'
 import { SiteBackupsPage } from './pages/SiteBackupsPage'
+import { SiteAnalyticsPage } from './pages/SiteAnalyticsPage'
 import { BlogPage, BlogPostDetailPage } from './pages/BlogPages'
 import { CreateFunnelPage, FunnelAnalyticsPage, FunnelBuilderPage, FunnelLeadsPage, FunnelsPage, FunnelSettingsPage, FunnelTemplatesPage } from './pages/FunnelPages'
 import { FunnelStepEditorPage } from './pages/FunnelStepEditorPage'
@@ -115,6 +116,7 @@ export default function App() {
         <Route path="/sites/:id/domains" element={<DomainsPage />} />
         <Route path="/sites/:id/navigation" element={<NavigationPage />} />
         <Route path="/sites/:id/settings" element={<SiteSettingsPage />} />
+        <Route path="/sites/:id/analytics" element={<SiteAnalyticsPage />} />
         <Route path="/sites/:id/seo" element={<SiteSeoPage />} />
         <Route path="/sites/:id/theme" element={<ThemePage />} />
         <Route path="/templates" element={<TemplatesPage />} />

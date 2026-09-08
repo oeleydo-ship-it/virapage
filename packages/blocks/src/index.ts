@@ -7,8 +7,10 @@ export type { BlockDefinition } from './types'
 export { defineBlock } from './types'
 export {
   Body,
+  BrandLogo,
   Button,
   Card,
+  Column,
   CheckList,
   Container,
   CtaGroup,
@@ -40,7 +42,7 @@ export {
   responsiveSectionCss,
 } from './responsive'
 export type { PreviewDevice, ResponsiveBuckets, ResponsiveDevice } from './responsive'
-export { EDIT_PROP, EditableImage, EditableRich, EditableText, ElementStyleProvider, editOf, pathId, withoutEditBinding } from './editable'
+export { EDIT_PROP, EditableImage, EditableRich, EditableText, ElementStyleProvider, editOf, pathId, useColumnAttrs, withoutEditBinding } from './editable'
 export type { EditBinding, EditPath, ElementStyleMap, ElementTextStyle } from './editable'
 export { Icon, ICON_NAMES } from './icons'
 export { sanitizeHtml, sanitizeRichText } from './sanitize'

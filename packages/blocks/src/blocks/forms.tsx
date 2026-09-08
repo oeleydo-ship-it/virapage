@@ -4,6 +4,7 @@ import { PublicForm, type PublicFormField } from '../public-form'
 import {
   Body,
   Card,
+  Column,
   CheckList,
   Heading,
   IconBadge,
@@ -18,7 +19,7 @@ import {
   str,
   type Props,
 } from '../primitives'
-import { field, headFields, icon, image, repeater, schema, select, text, toggle } from '../schema'
+import { columnStyleFields, field, headFields, icon, image, repeater, schema, select, text, toggle } from '../schema'
 import { defineBlock } from '../types'
 
 const contactRepeater = repeater(
@@ -160,7 +161,7 @@ function FormBlock({
   return (
     <SectionShell props={props} tone={tone}>
       <div className={cx('ud-split', bool(props.reverse) && 'ud-split--reverse')}>
-        <div>
+        <Column name="copyColumn">
           <SectionHead props={props} center={false} />
           {lines(props.bullets).length || edit ? (
             <div style={{ marginTop: 24 }}>
@@ -175,8 +176,8 @@ function FormBlock({
               <Media src={props.image} ratio="wide" edit={edit} path={['image']} />
             </div>
           ) : null}
-        </div>
-        <div className="ud-split__media">{wrapped}</div>
+        </Column>
+        <Column name="mediaColumn" className="ud-split__media">{wrapped}</Column>
       </div>
     </SectionShell>
   )

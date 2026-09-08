@@ -1,3 +1,5 @@
+import { pawberryCss } from './pawberry-styles'
+import { sproutkindCss } from './sproutkind-styles'
 import { concourseCss } from './concourse-styles'
 /**
  * Stylesheet shared by the builder canvas and the published renderer.
@@ -8,8 +10,10 @@ import { concourseCss } from './concourse-styles'
  */
 import { productCss } from './product-styles'
 import { formaCss } from './forma-styles'
+import { lexaraCss } from './lexara-styles'
+import { marigoldCss } from './marigold-styles'
 
-export const blockCss = concourseCss + productCss + formaCss + `
+export const blockCss = pawberryCss + sproutkindCss + concourseCss + lexaraCss + marigoldCss + productCss + formaCss + `
 [data-page-renderer]{container-name:udpage;position:relative;}
 /* Size containment on the page root makes descendant sticky headers stick to the page box, which scrolls away. Keep query containers on each section instead. */
 [data-page-renderer] > *{container-type:inline-size;container-name:udpage;}
@@ -79,6 +83,7 @@ export const blockCss = concourseCss + productCss + formaCss + `
 .ud-right .ud-btns{justify-content:flex-end;}
 
 .ud-grid{display:grid;gap:var(--ud-gap,24px);grid-template-columns:repeat(var(--ud-cols-now,var(--ud-cols,3)),minmax(0,1fr));}
+.ud-brand-logo{position:relative;display:inline-flex;align-items:center;}.ud-brand-logo>img{display:block;max-height:var(--ud-logo-h,38px);width:auto;object-fit:contain;}
 .ud-split{display:grid;gap:clamp(28px,4cqi,64px);grid-template-columns:var(--ud-split,1.02fr .98fr);align-items:center;}
 .ud-split--reverse > .ud-split__media{order:-1;}
 .ud-stack{display:grid;gap:var(--ud-gap,16px);}
@@ -6645,7 +6650,10 @@ export const blockCss = concourseCss + productCss + formaCss + `
   .ud-hv-proof{max-width:none}
   .ud-hv-step,.ud-hv-step--reverse{flex-direction:column;align-items:stretch}
   .ud-hv-step__body,.ud-hv-step__img{flex:none}
-  .ud-hv-step__img{width:100%}
+  /* The step image is square, so a full-width one turns each stacked step
+     into a screen-tall block and the section into a scroll. Cap it and
+     centre it instead. */
+  .ud-hv-step__img{width:min(100%,320px);margin-inline:auto}
   .ud-hv-features .ud-grid,.ud-hv-team .ud-grid,.ud-hv-blog .ud-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .ud-hv-features .ud-grid > *:last-child:nth-child(odd),.ud-hv-team .ud-grid > *:last-child:nth-child(odd),.ud-hv-blog .ud-grid > *:last-child:nth-child(odd){grid-column:1 / -1;max-width:calc(50% - 12px);margin-inline:auto}
   .ud-hv-projects__list{grid-template-columns:repeat(2,1fr)}

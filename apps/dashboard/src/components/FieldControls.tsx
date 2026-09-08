@@ -339,7 +339,7 @@ const ELEMENT_FONT_WEIGHTS = [
   { value: '900', label: '900 Black' },
 ]
 
-function BoxStyleEditor({ path, context, label, textPath }: { path: EditPath; context: FieldContext; label: string; textPath?: EditPath }) {
+function BoxStyleEditor({ path, context, label, textPath, variant = 'button' }: { path: EditPath; context: FieldContext; label: string; textPath?: EditPath; variant?: 'button' | 'column' }) {
   if (!context.onElementStyleChange) return null
   const value = context.elementStyles?.[pathId(path)] || {}
   function patch(property: keyof ElementTextStyle, next: string | number | undefined) {
@@ -347,10 +347,48 @@ function BoxStyleEditor({ path, context, label, textPath }: { path: EditPath; co
     if (next === undefined || next === '') delete updated[property]
     context.onElementStyleChange?.(path, Object.keys(updated).length ? updated : undefined)
   }
+  // Styles saved before column backgrounds existed carry no backgroundType, and
+  // must keep behaving as a plain colour fill.
+  const backgroundType = value.backgroundType || 'color'
+  const isColumn = variant === 'column'
   return <details className="rounded-lg border border-zinc-800 bg-zinc-900/40">
     <summary className="cursor-pointer px-3 py-2 text-xs text-zinc-300">{label} appearance{context.device && context.device !== 'desktop' ? ` - ${context.device}` : ''}</summary>
     <div className="space-y-3 border-t border-zinc-800 p-3">
-      {(['backgroundColor', 'borderColor'] as const).map((key) => <Row key={key} label={key === 'backgroundColor' ? 'Background color' : 'Border color'}>
+      {isColumn ? <Row label="Background"><Select value={backgroundType} onChange={(next) => patch('backgroundType', next === 'color' ? undefined : next)} options={[
+        { value: 'color', label: 'Solid color' }, { value: 'gradient', label: 'Gradient' }, { value: 'image', label: 'Image' },
+      ]} /></Row> : null}
+      {isColumn && backgroundType === 'gradient' ? <>
+        {(['gradientFrom', 'gradientTo'] as const).map((key) => <Row key={key} label={key === 'gradientFrom' ? 'Gradient from' : 'Gradient to'}>
+          <ColorField value={value[key] || ''} onChange={(next) => patch(key, next)} theme={context.theme} fieldKey={`element:${pathId(path)}:${key}`} sectionId={context.sectionId} />
+        </Row>)}
+        <Row label="Gradient angle">
+          <SliderField value={value.gradientAngle} onChange={(next) => patch('gradientAngle', typeof next === 'number' ? next : undefined)} field={{ key: 'gradientAngle', type: 'slider', label: 'Gradient angle', min: 0, max: 360, step: 1, unit: 'deg' }} fallback={135} />
+        </Row>
+      </> : null}
+      {isColumn && backgroundType === 'image' ? <>
+        <Row label="Background image">
+          <MediaPicker value={value.backgroundImage || ''} onChange={(url) => patch('backgroundImage', url || undefined)} siteId={context.siteId} kind="image" />
+        </Row>
+        <Row label="Image fit"><Select value={value.backgroundSize || 'cover'} onChange={(next) => patch('backgroundSize', next === 'cover' ? undefined : next)} options={[
+          { value: 'cover', label: 'Cover - fill, crop overflow' }, { value: 'contain', label: 'Contain - show all' }, { value: 'auto', label: 'Original size' },
+        ]} /></Row>
+        <Row label="Image position"><Select value={value.backgroundPosition || 'center'} onChange={(next) => patch('backgroundPosition', next === 'center' ? undefined : next)} options={[
+          { value: 'center', label: 'Center' }, { value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' },
+          { value: 'left', label: 'Left' }, { value: 'right', label: 'Right' },
+          { value: 'top left', label: 'Top left' }, { value: 'top right', label: 'Top right' },
+          { value: 'bottom left', label: 'Bottom left' }, { value: 'bottom right', label: 'Bottom right' },
+        ]} /></Row>
+        <Row label="Repeat"><Select value={value.backgroundRepeat || 'no-repeat'} onChange={(next) => patch('backgroundRepeat', next === 'no-repeat' ? undefined : next)} options={[
+          { value: 'no-repeat', label: 'No repeat' }, { value: 'repeat', label: 'Tile' }, { value: 'repeat-x', label: 'Tile across' }, { value: 'repeat-y', label: 'Tile down' },
+        ]} /></Row>
+        <Row label="Overlay color">
+          <ColorField value={value.overlayColor || ''} onChange={(next) => patch('overlayColor', next)} theme={context.theme} fieldKey={`element:${pathId(path)}:overlayColor`} sectionId={context.sectionId} />
+        </Row>
+        <Row label="Overlay strength">
+          <SliderField value={value.overlayOpacity} onChange={(next) => patch('overlayOpacity', typeof next === 'number' ? next : undefined)} field={{ key: 'overlayOpacity', type: 'slider', label: 'Overlay strength', min: 0, max: 100, step: 1, unit: '%' }} fallback={0} />
+        </Row>
+      </> : null}
+      {(['backgroundColor', 'borderColor'] as const).map((key) => key === 'backgroundColor' && isColumn && backgroundType !== 'color' ? null : <Row key={key} label={key === 'backgroundColor' ? 'Background color' : 'Border color'}>
         <ColorField value={value[key] || ''} onChange={(next) => patch(key, next)} theme={context.theme} fieldKey={`element:${pathId(path)}:${key}`} />
       </Row>)}
       {([
@@ -366,6 +404,16 @@ function BoxStyleEditor({ path, context, label, textPath }: { path: EditPath; co
       <Row label="Shadow"><Select value={value.boxShadow || ''} onChange={(next) => patch('boxShadow', next)} options={[
         { value: '', label: 'Theme default' }, { value: 'none', label: 'None' }, { value: '0 4px 12px #00000018', label: 'Soft' }, { value: '0 12px 30px #00000030', label: 'Elevated' },
       ]} /></Row>
+      {isColumn ? <>
+        <Row label="Minimum height">
+          <SliderField value={value.minHeight} onChange={(next) => patch('minHeight', typeof next === 'number' ? next : undefined)} field={{ key: 'minHeight', type: 'slider', label: 'Minimum height', min: 0, max: 900, step: 1, unit: 'px', placeholder: 'auto' }} fallback={0} />
+        </Row>
+        {value.minHeight !== undefined ? <Row label="Content position" help="Where the column's content sits once it is shorter than the height above.">
+          <Select value={value.justifyContent || ''} onChange={(next) => patch('justifyContent', next)} options={[
+            { value: '', label: 'Template default' }, { value: 'flex-start', label: 'Top' }, { value: 'center', label: 'Middle' }, { value: 'flex-end', label: 'Bottom' }, { value: 'space-between', label: 'Spread' },
+          ]} />
+        </Row> : null}
+      </> : null}
       <button type="button" className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white" onClick={() => context.onElementStyleChange?.(path, undefined)}><RotateCcw size={12} /> Reset appearance</button>
       {textPath ? <div className="border-t border-zinc-800 pt-3"><p className="mb-3 text-xs font-medium text-zinc-300">Text style</p><ElementStyleEditor path={textPath} context={context} embedded /></div> : null}
     </div>
@@ -896,7 +944,7 @@ function FieldControlFields({
     )
   }
 
-  if (field.styleTarget === 'column') return <BoxStyleEditor path={elementPath} context={context} label={field.label} />
+  if (field.styleTarget === 'column') return <BoxStyleEditor path={elementPath} context={context} label={field.label} variant="column" />
 
   switch (field.type) {
     case 'products':

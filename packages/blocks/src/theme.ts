@@ -86,6 +86,8 @@ export const FONT_CATALOG: FontEntry[] = [
   sans("IBM Plex Sans"),
   sans("Sora"),
   sans("Albert Sans"),
+  sans("Onest"),
+  sans("Parkinsans"),
   sans("Mulish"),
   sans("Barlow"),
   sans("PT Sans"),

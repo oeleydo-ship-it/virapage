@@ -25,6 +25,13 @@ class FormService
 
     public const STATUSES = ['new', 'read', 'spam', 'archived'];
 
+    /**
+     * A human takes at least this long to read a form and fill in a field.
+     * The runtime times each form from when it mounts, so a submission that
+     * beats this is a script that POSTed straight to the endpoint.
+     */
+    private const MIN_FILL_MS = 1200;
+
     public function __construct(
         private readonly CurrentWorkspace $currentWorkspace,
         private readonly PlanLimitService $limits,
@@ -191,7 +198,7 @@ class FormService
             }
             $kind = substr($section['type'], 5);
             // Editorial template variants still submit to a normal platform form.
-            if ($kind === 'cinder' || $kind === 'lumen_contact') {
+            if ($kind === 'cinder' || $kind === 'lumen_contact' || $kind === 'sproutkind' || $kind === 'pawberry') {
                 $kind = 'contact';
             } elseif ($kind === 'lumen_booking') {
                 $kind = 'quote';
@@ -239,6 +246,15 @@ class FormService
 
         $honeypot = $request->input('website') ?? $request->input('honeypot');
         if (filled($honeypot)) {
+            throw new HttpException(422, 'Spam detected.');
+        }
+
+        // Present only when the runtime that rendered the form is new enough
+        // to send it, so its absence (an older cached page, a direct API
+        // call) is not itself treated as suspicious - only a value that is
+        // too low to be a real visitor is.
+        $elapsedMs = $request->input('elapsedMs');
+        if (is_numeric($elapsedMs) && (float) $elapsedMs < self::MIN_FILL_MS) {
             throw new HttpException(422, 'Spam detected.');
         }
 

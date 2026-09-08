@@ -11,6 +11,8 @@ class TemplateSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(PawberryTemplateSeeder::class);
+        $this->call(SproutkindTemplateSeeder::class);
         $this->call(ConcourseTemplateSeeder::class);
 
         $this->publish(
@@ -483,6 +485,26 @@ class TemplateSeeder extends Seeder
             featured: true,
             theme: TemplateNovalta::theme(),
             pages: TemplateNovalta::pages(),
+        );
+
+        $this->publish(
+            category: ['slug' => 'saas', 'name' => 'SaaS'],
+            slug: 'lexara',
+            name: 'Lexara',
+            description: 'A contract-intelligence and enterprise B2B kit: near-black bands alternating with warm off-white, one burnt-orange accent carrying the eyebrows, the ticker bar and a single word of every headline, high-contrast Source Serif 4 display type over plain Inter copy, a tabbed approval-workflow mock and a clause-review document drawn entirely in markup, a numbered principles row, an outcome-figure strip and a customer story carousel, across six fully editable pages. No photography to license.',
+            featured: true,
+            theme: TemplateLexara::theme(),
+            pages: TemplateLexara::pages(),
+        );
+
+        $this->publish(
+            category: ['slug' => 'nonprofit', 'name' => 'Nonprofit & Charity'],
+            slug: 'marigold',
+            name: 'Marigold',
+            description: 'A nonprofit childcare and early-education kit: a warm cream sheet carrying full-bleed deep-green panels, a lime headline colour used only on green, coral eyebrows and category chips, generously rounded cards and 100px pills, a split-panel hero with a live donation-progress card, fundraising appeal cards with raised/goal bars and preset amounts, tabbed programmes, an enrolment path, an educator grid and a shop, across seven fully editable pages.',
+            featured: true,
+            theme: TemplateMarigold::theme(),
+            pages: TemplateMarigold::pages(),
         );
     }
 

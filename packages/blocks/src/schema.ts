@@ -338,6 +338,38 @@ export const sectionStyleFields: BlockField[] = [
   select('sectionShadow', 'Section shadow', [['none', 'None'], ['soft', 'Soft'], ['medium', 'Medium'], ['strong', 'Strong']], 'design'),
 ]
 
+/**
+ * Uploadable brand logo, for any block that draws a wordmark - navigation bars
+ * and footers alike. The image is optional: with nothing uploaded the block
+ * keeps rendering its own lockup, which is what `BrandLogo` falls back to.
+ */
+export const logoImageFields: BlockField[] = [
+  image('logoImage', 'Logo image'),
+  slider('logoHeight', 'Logo height', 16, 120, 'design', { unit: 'px', placeholder: 'auto', when: { key: 'logoImage', not: '' } }),
+]
+
+/**
+ * Per-column appearance controls for a block that renders a left/right split.
+ *
+ * Each entry renders a "Column appearance" panel (background colour, gradient
+ * or image, overlay, border, padding, height and content position) rather than
+ * a text input - the field's own type is never shown. The block must pair each
+ * key with `useElementStyle([key])` on the matching column element and tag it
+ * `data-ud-style={key}`, or the panel edits nothing; `columnAttrs` does both.
+ *
+ * Keys are deliberately per-block rather than fixed, so a block whose split is
+ * copy/media can label them that way.
+ */
+export function columnStyleFields(
+  left: [key: string, label: string] = ['leftColumn', 'Left column'],
+  right: [key: string, label: string] = ['rightColumn', 'Right column'],
+): BlockField[] {
+  return [
+    { ...text(left[0], left[1]), group: 'design', styleTarget: 'column' },
+    { ...text(right[0], right[1]), group: 'design', styleTarget: 'column' },
+  ]
+}
+
 /** Column count control for grid blocks. */
 export const columnsField = (min = 2, max = 4) => slider('columns', 'Columns', min, max, 'layout')
 export const gapField = slider('gap', 'Gap', 8, 64, 'layout', { unit: 'px' })

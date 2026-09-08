@@ -1,0 +1,17 @@
+{
+  "reference": "https://edefy-charity.webflow.io/",
+  "assets": {
+    "hero.jpg": "https://cdn.prod.website-files.com/699be0e75716a900f327fd95%2F699c065300addd6ed58989b8_0_Children_Art_1920x1080_poster.0000000.jpg",
+    "hero.mp4": "https://cdn.prod.website-files.com/699be0e75716a900f327fd95%2F699c065300addd6ed58989b8_0_Children_Art_1920x1080_mp4.mp4",
+    "children.jpg": "https://cdn.prod.website-files.com/699be0e75716a900f327fd95/699e7ffe70725bdba8b88489_346b22104d2a80526719548be9986e2a_Features-Img.jpg",
+    "about.jpg": "https://cdn.prod.website-files.com/699be0e75716a900f327fd95/699ea6980d5bf86afa075d94_c0cf7f22c4b619b72b998cc387ab2eb2_About-img.jpg",
+    "program-play.jpg": "https://cdn.prod.website-files.com/699ecb25b836198626ab38ee/699ecd0545a0dc4df09760ef_program-1.jpg",
+    "program-language.jpg": "https://cdn.prod.website-files.com/699ecb25b836198626ab38ee/699ecd41d869cc3853de182f_program-2.jpg",
+    "program-care.jpg": "https://cdn.prod.website-files.com/699ecb25b836198626ab38ee/69b139fe96eff708eae38605_program-3.jpg",
+    "classroom.jpg": "https://cdn.prod.website-files.com/699be0e75716a900f327fd95/699f2ec78c798fc3002e48a7_3838528f86cf2fcf922648ad441f6eb6_Benefits-img.jpg",
+    "care.jpg": "https://cdn.prod.website-files.com/699be0e75716a900f327fd95/699fcc4969d8b21654086fbb_c7f80fe48bad1d350863aa7280d5b793_Care-%26-Education-Item-Img-2.jpg",
+    "creativity.jpg": "https://cdn.prod.website-files.com/699be0e75716a900f327fd95/699fccd6c5ee1bc5ae9dae83_da1b791ba64bcbf5b4833575c266d263_Care-%26-Education-Item-Img-3.jpg",
+    "event-art.avif": "https://cdn.prod.website-files.com/699ecb25b836198626ab38ee/699fe66647cde566e3582059_Event-3.avif",
+    "event-family.avif": "https://cdn.prod.website-files.com/699ecb25b836198626ab38ee/699fe6ad0229cfd539b0cc35_Event-4.avif"
+  }
+}

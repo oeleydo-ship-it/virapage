@@ -36,7 +36,11 @@ class SiteKitProfile
      * @var array<string, array{label: string, note: string}>
      */
     public const KIT_NOTES = [
+        'pawberry' => ['label' => 'Pawberry', 'note' => 'Friendly pet grooming studio. Fredoka rounded headings over Satoshi body, cream and pale butter backgrounds, brown text, yellow buttons, blue and coral accents, playful doodles, dog portrait hero, moving team strip, white service and pricing cards, photo testimonials and a video invitation.'],
+        'sproutkind' => ['label' => 'Sproutkind', 'note' => 'Playful early-learning school: warm cream, sunny yellow, forest green, rounded photos, Parkinsans type, pinwheel motifs, video hero, filterable programs and gallery, interactive admissions and family stories.'],
         'concourse' => ['label' => 'Concourse', 'note' => 'Enterprise finance platform. Cinematic video hero, navy and white sections, large light-weight type, restrained motion, image cards, interactive agent reports, and editorial customer stories.'],
+        'marigold' => ['label' => 'Marigold', 'note' => 'Nonprofit childcare and early-education charity. A warm cream sheet carrying full-bleed deep-green panels, a lime headline colour used only on green, coral eyebrows and chips, rounded 20-26px cards and 100px pills, a split-panel hero with a donation-progress card, and fundraising appeal cards with raised/goal bars and preset amounts.'],
+        'lexara' => ['label' => 'Lexara', 'note' =>'Contract intelligence and enterprise B2B software. Near-black bands alternating with warm off-white, one burnt-orange accent on eyebrows and a single word per headline, high-contrast serif display type over plain UI sans, and product mock-ups drawn in markup rather than screenshots. No photography.'],
         'forma' => [
             'label' => 'Forma',
             'note' => 'Independent design studio, editorial and warm. Bone-white and oat pages, terracotta accent, near-black serif headlines set tight, pill buttons, numbered sections and full-bleed project artwork.',

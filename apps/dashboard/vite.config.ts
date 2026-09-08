@@ -32,6 +32,10 @@ export default defineConfig(({ command }) => ({
     port: Number(process.env.PORT) || 5174,
     strictPort: false,
     proxy: {
+      '/template-assets': {
+        target: process.env.VITE_API_PROXY || 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
       '^/templates/concourse/.*\\.(webp|mp4|woff2)$': {
         target: process.env.VITE_API_PROXY || 'http://127.0.0.1:8000',
         changeOrigin: true,

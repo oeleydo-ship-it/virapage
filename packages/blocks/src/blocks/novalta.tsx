@@ -111,7 +111,7 @@ export const navbarNovalta = defineBlock({
     animation: 'fade-down',
     animationTrigger: 'load',
   },
-  schema: schema(...logoFields, navLinksField('links', 'Links'), text('buttonLabel', 'Button label'), link('buttonUrl', 'Button link'), stickyField),
+  schema: schema(...logoFields, navLinksField('links', 'Links'), text('buttonLabel', 'Button label', { styleTarget: 'button' }), link('buttonUrl', 'Button link'), stickyField),
   component: function NavbarNovalta(props) {
     const edit = editOf(props)
     const [open, setOpen] = useState(false)
@@ -128,7 +128,7 @@ export const navbarNovalta = defineBlock({
           </nav>
           <div className="ud-nv-nav__end">
             {str(props.buttonLabel) || edit ? (
-              <Button href={str(props.buttonUrl, '#')} variant="primary" className="ud-nv-nav__cta">
+              <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="primary" className="ud-nv-nav__cta">
                 <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
               </Button>
             ) : null}
@@ -204,7 +204,7 @@ export const heroNovalta = defineBlock({
     headingField,
     text('headingHighlight', 'Highlighted phrase'),
     descriptionField,
-    text('buttonLabel', 'Button label'),
+    text('buttonLabel', 'Button label', { styleTarget: 'button' }),
     link('buttonUrl', 'Button link'),
     image('image', 'Side image'),
   ),
@@ -225,7 +225,7 @@ export const heroNovalta = defineBlock({
             <SafeText value={str(props.description)} className="ud-nv-lead" edit={edit} path={['description']} placeholder="Supporting copy" />
           ) : null}
           {str(props.buttonLabel) || edit ? (
-            <Button href={str(props.buttonUrl, '#')} variant="primary" className="ud-nv-hero__cta">
+            <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="primary" className="ud-nv-hero__cta">
               <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
             </Button>
           ) : null}
@@ -275,7 +275,7 @@ export const servicesNovalta = defineBlock({
     headingField,
     text('headingHighlight', 'Highlighted word'),
     descriptionField,
-    text('buttonLabel', 'Button label'),
+    text('buttonLabel', 'Button label', { styleTarget: 'button' }),
     link('buttonUrl', 'Button link'),
     repeater('items', 'Orbit icons', [icon('icon', 'Icon'), text('title', 'Label')], { itemLabel: 'Icon' }),
     repeater('tags', 'Tag cloud', [text('label', 'Tag')], { itemLabel: 'Tag' }),
@@ -289,7 +289,7 @@ export const servicesNovalta = defineBlock({
         <div className="ud-nv-services__top">
           <NvHead props={props} align="left" />
           {str(props.buttonLabel) || edit ? (
-            <Button href={str(props.buttonUrl, '#')} variant="outline" className="ud-nv-services__cta">
+            <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="outline" className="ud-nv-services__cta">
               <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
             </Button>
           ) : null}
@@ -341,7 +341,7 @@ export const aboutNovalta = defineBlock({
     headingField,
     text('headingHighlight', 'Highlighted word'),
     descriptionField,
-    text('buttonLabel', 'Button label'),
+    text('buttonLabel', 'Button label', { styleTarget: 'button' }),
     link('buttonUrl', 'Button link'),
     image('image', 'Photo'),
   ),
@@ -353,7 +353,7 @@ export const aboutNovalta = defineBlock({
         <div className="ud-nv-about__copy">
           <NvHead props={props} align="left" />
           {str(props.buttonLabel) || edit ? (
-            <Button href={str(props.buttonUrl, '#')} variant="outline" className="ud-nv-about__cta">
+            <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="outline" className="ud-nv-about__cta">
               <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
             </Button>
           ) : null}
@@ -599,7 +599,7 @@ export const galleryNovalta = defineBlock({
     text('headingHighlight', 'Highlighted word'),
     descriptionField,
     repeater('filters', 'Filter labels', [text('label', 'Label')], { itemLabel: 'Filter' }),
-    text('moreLabel', 'Button label'),
+    text('moreLabel', 'Button label', { styleTarget: 'button' }),
     link('moreUrl', 'Button link'),
     repeater('items', 'Projects', [image('image', 'Image'), text('title', 'Title'), text('category', 'Category'), link('url', 'Link')], { itemLabel: 'Project' }),
   ),
@@ -632,7 +632,7 @@ export const galleryNovalta = defineBlock({
           ))}
         </div>
         {str(props.moreLabel) || edit ? (
-          <Button href={str(props.moreUrl, '#')} variant="outline" className="ud-nv-projects__more">
+          <Button stylePath={['moreLabel', '$box']} href={str(props.moreUrl, '#')} variant="outline" className="ud-nv-projects__more">
             <EditableText edit={edit} path={['moreLabel']} value={str(props.moreLabel)} placeholder="View More" />
           </Button>
         ) : null}
@@ -788,11 +788,12 @@ export const footerNovalta = defineBlock({
     copyright: 'Novalta. All images are for demo purposes.',
   },
   schema: schema(
+    ...logoFields,
     text('badgeLabel', 'Badge label'),
     headingField,
     text('headingHighlight', 'Highlighted word'),
     descriptionField,
-    text('buttonLabel', 'Button label'),
+    text('buttonLabel', 'Button label', { styleTarget: 'button' }),
     link('buttonUrl', 'Button link'),
     text('aboutLabel', 'Secondary link label'),
     link('aboutUrl', 'Secondary link'),
@@ -824,7 +825,7 @@ export const footerNovalta = defineBlock({
             </h2>
             <SafeText value={str(props.description)} className="ud-nv-lead" edit={edit} path={['description']} placeholder="Description" />
             {str(props.buttonLabel) || edit ? (
-              <Button href={str(props.buttonUrl, '#')} variant="primary" className="ud-nv-footer__btn">
+              <Button stylePath={['buttonLabel', '$box']} href={str(props.buttonUrl, '#')} variant="primary" className="ud-nv-footer__btn">
                 <EditableText edit={edit} path={['buttonLabel']} value={str(props.buttonLabel)} placeholder="Button" />
               </Button>
             ) : null}
