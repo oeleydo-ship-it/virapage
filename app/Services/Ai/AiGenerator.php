@@ -53,13 +53,13 @@ class AiGenerator
         // convention yet, so the kit art direction chose carries the motion.
         $detected = $this->kits->detect($site, $live);
         $kit = $detected ?? $chosenKit;
-        if ($kit === null || $kit['design'] === []) {
+        if ($kit === null) {
             return ['pages' => $pages, 'sections' => $sections];
         }
 
-        // Art direction is a decision made for this site, so it beats the block
-        // defaults; a convention read off existing pages only fills gaps.
-        $overwrite = $detected === null;
+        // Generated pages must inherit the established conventions even when
+        // the model supplies conflicting values.
+        $overwrite = true;
 
         foreach ($pages as $index => $page) {
             // Assembled pages carry their sections under `content`. Reaching for
@@ -67,6 +67,18 @@ class AiGenerator
             // pages never picked up the design they were supposed to.
             if (is_array($page['content']['sections'] ?? null)) {
                 $pages[$index]['content']['sections'] = $this->kits->applyDesign($page['content']['sections'], $kit['design'], $overwrite);
+                if ($detected !== null) {
+                    foreach ($page['content']['sections'] as $section) {
+                        if (! in_array($section['type'], $kit['types'], true)) {
+                            throw AiException::invalidOutput('The generated page did not match your template. Please try again; your existing design has been preserved.');
+                        }
+                    }
+                    $pages[$index]['content']['sections'] = $this->kits->applyDesign(
+                        $this->kits->matchPageStyles($site, $pages[$index]['content']['sections'], $live),
+                        $kit['design'],
+                    );
+                    $pages[$index]['content']['sections'] = $this->kits->matchPageChrome($site, $pages[$index]['content']['sections']);
+                }
             } elseif (is_array($page['sections'] ?? null)) {
                 $pages[$index]['sections'] = $this->kits->applyDesign($page['sections'], $kit['design'], $overwrite);
             }
@@ -92,7 +104,7 @@ class AiGenerator
         $chosen = $direction['kit'] ?? null;
 
         $raw = $this->complete(
-            $this->prompts->pageSystemPrompt(),
+            $this->prompts->pageSystemPrompt($this->kits->detect($site) ?? $chosen),
             $this->prompts->pagePrompt($site, $input, $chosen),
             ['max_tokens' => (int) config('ai.site_max_tokens', 8000)],
         );
@@ -100,6 +112,15 @@ class AiGenerator
         $assembled = $this->assembleSite($raw);
         $matched = $this->matchSiteDesign($site, $assembled['pages'], [], null, $chosen);
         $assembled['pages'] = $matched['pages'];
+        foreach ($assembled['pages'] as $page) {
+            if ($page['is_homepage'] || count($assembled['pages']) === 1) {
+                $assembled['content'] = $page['content'];
+                break;
+            }
+        }
+        if ($this->kits->detect($site) !== null) {
+            $assembled['theme'] = [];
+        }
 
         // What the model wrote into the site JSON wins; art direction fills the
         // tokens it did not mention.
@@ -227,8 +248,12 @@ class AiGenerator
             return ['sections' => $sections, 'report' => ['slots' => 0, 'rewritten' => 0]];
         }
 
+        $kit = $this->kits->detect($site, $sections);
+        if ($kit !== null) {
+            $input['copy_kit'] = $kit;
+        }
         $raw = $this->complete(
-            $this->prompts->templateCopySystemPrompt(),
+            $this->prompts->templateCopySystemPrompt($kit),
             $this->prompts->templateCopyPrompt($site, $slots, $input),
             ['max_tokens' => (int) config('ai.site_max_tokens', 8000)],
         );
@@ -255,11 +280,32 @@ class AiGenerator
             $values[$slots[(int) $index]['path']] = $text;
         }
 
-        if ($values === []) {
+        $added = [];
+        if ($kit !== null && is_array($decoded['additional_blocks'] ?? null)) {
+            $rawAdded = array_slice($decoded['additional_blocks'], 0, 6);
+            foreach ($rawAdded as $block) {
+                if (! is_array($block) || ! in_array($block['type'] ?? null, $kit['types'], true)
+                    || preg_match('/^(navbar|topbar|subnav|footer)\./', $block['type'])) {
+                    throw AiException::invalidOutput('Additional sections must use body blocks from your selected template. Please try again.');
+                }
+            }
+            $added = $this->repair->repairContent(['sections' => $rawAdded])['content']['sections'];
+            $added = $this->kits->applyDesign($this->kits->matchPageStyles($site, $added, $sections), $kit['design']);
+        }
+
+        if ($values === [] && $added === []) {
             throw AiException::invalidOutput('The AI did not return any usable copy. Try again.');
         }
 
         $rewritten = TemplateCopySlots::apply($sections, $values);
+        $insertAt = count($rewritten);
+        foreach ($rewritten as $index => $section) {
+            if (str_starts_with($section['type'], 'footer.')) {
+                $insertAt = $index;
+                break;
+            }
+        }
+        array_splice($rewritten, $insertAt, 0, $added);
 
         // The same validator every page save goes through, so generated copy
         // cannot carry markup into a published page.
@@ -267,7 +313,7 @@ class AiGenerator
 
         return [
             'sections' => $validated['sections'],
-            'report' => ['slots' => count($slots), 'rewritten' => count($values)],
+            'report' => ['slots' => count($slots), 'rewritten' => count($values), 'added' => count($added)],
         ];
     }
 
@@ -475,6 +521,9 @@ class AiGenerator
         $matched = $this->matchSiteDesign($site, $pages, $sections, $liveSections, $direction['kit'] ?? null);
         $pages = $matched['pages'];
         $sections = $matched['sections'];
+        if ($detected !== null && $pages !== []) {
+            $theme = [];
+        }
 
         // The palette chosen for the brief, where the model did not name one of
         // its own. A blank site has no theme worth keeping, so this is the first
@@ -504,13 +553,12 @@ class AiGenerator
     }
 
     /**
-     * Rewrites the words on the page the user is looking at, and nothing else.
+     * Rewrites the current page and adds matching sections for overflow content.
      *
      * Chat's other answers hand back sections the model composed, which is what
      * lets "rewrite the content" arrive as a differently-built page. This route
-     * never asks for sections: it sends the copy the live blocks declare and
-     * puts the replies back into those same blocks, so the template the
-     * customer chose survives by construction.
+     * keeps existing blocks on the copy-slot path. Additional sections pass
+     * through the template allowlist and inherit its design before insertion.
      *
      * @param  array<string, mixed>  $input
      * @param  list<array<string, mixed>>|null  $liveSections
@@ -547,13 +595,15 @@ class AiGenerator
             'progress' => 74,
         ]);
 
-        if ($result['report']['rewritten'] === 0) {
+        if ($result['report']['rewritten'] === 0 && ($result['report']['added'] ?? 0) === 0) {
             throw AiException::invalidOutput('The AI did not return any usable copy. Try again.');
         }
 
         $report = $result['report'];
         if ($message === '') {
-            $message = 'I rewrote the copy on this page and left the layout exactly as it was.';
+            $message = ($report['added'] ?? 0) > 0
+                ? 'I updated the content and added matching template sections for the additional details. The existing design is preserved.'
+                : 'I rewrote the copy on this page and left the layout exactly as it was.';
         }
 
         $emit('ready', 'Generation is ready to render on the canvas.', [
@@ -577,6 +627,7 @@ class AiGenerator
                 'pages' => 0,
                 'slots' => $report['slots'],
                 'rewritten' => $report['rewritten'],
+                'added' => $report['added'] ?? 0,
             ],
         ];
     }

@@ -38,7 +38,7 @@ class AiPromptBuilder
             '',
             'DESIGN SYSTEM: this site is built from the "'.$kit['label'].'" kit.',
             'Prefer its blocks so anything you add matches the pages already here. They share the kit\'s type scale, spacing and colour treatment.',
-            'Use a generated.* block only when no kit block fits the purpose, and keep it to a minimum.',
+            'For new pages use ONLY this kit\'s blocks. Adapt their content to the requested purpose; do not introduce generated.* or another kit. Preserve the existing global theme, fonts, colours, spacing, header and footer. Return an empty theme object.',
         ];
 
         if ($kit['design'] !== []) {
@@ -50,13 +50,13 @@ class AiPromptBuilder
         $lines[] = 'Kit blocks — prefer these (type — label — allowed props):';
         $lines[] = $this->catalogText($kit['types']);
         $lines[] = '';
-        $lines[] = 'Fallback original blocks, only when the kit has nothing suitable:';
+        $lines[] = 'Fallback original blocks for standalone block requests only, never for a new kit page:';
         $lines[] = $this->generationCatalogText();
 
         return $lines;
     }
 
-    public function pageSystemPrompt(): string
+    public function pageSystemPrompt(?array $kit = null): string
     {
         $maxPages = max(1, (int) config('ai.max_pages', 5));
 
@@ -71,9 +71,13 @@ class AiPromptBuilder
             '- Emit between 1 and '.$maxPages.' pages. Typical sites use 3–'.$maxPages.' pages (Home plus About, services/work, contact, and similar).',
             '- Exactly one page has is_homepage true. Its slug should be "home".',
             '- Slugs are lowercase kebab-case. Navbar and footer link urls MUST be "/" for Home and "/{slug}" for other pages. Never use "#".',
-            '- Every page starts with generated.nav and ends with generated.footer. Reuse the same chrome copy and links on every page.',
-            '- Inner pages still need a distinct generated.hero, generated.story, or generated.form — do not copy the homepage body.',
-            '- "type" MUST be one of the generated.* types listed in the catalog. Never invent a type. Never use catalog kits (hero.centered, navbar.cta, faq.accordion, ChatDeck, Genesis, Counsel, and similar).',
+            $kit === null
+                ? '- Every page starts with generated.nav and ends with generated.footer. Reuse the same chrome copy and links on every page.'
+                : '- Every page uses the existing kit navbar and footer. Preserve the site design and return an empty theme object.',
+            '- Inner pages need content specific to their purpose; do not copy the homepage body.',
+            $kit === null
+                ? '- "type" MUST be one of the generated.* types listed in the catalog. Never invent a type. Never use catalog kits (hero.centered, navbar.cta, faq.accordion, ChatDeck, Genesis, Counsel, and similar).'
+                : '- "type" MUST be from the '.$kit['label'].' kit catalog. Never use another kit or generated.* blocks.',
             '- "props" keys MUST be prop names listed for that block. Never invent prop names.',
             '- Do not emit ids, versions, HTML, scripts, styles or urls to external images. If no uploaded image path is supplied, leave image empty and use generated.composition with a CSS visual instead.',
             '- Every section must be publication-ready and about this exact request. Never rely on block defaults for visible copy.',
@@ -184,16 +188,15 @@ class AiPromptBuilder
     /**
      * Rewriting a template's copy, slot by slot.
      *
-     * The model is never shown sections and never returns any: it sees a
-     * numbered list of the strings a template ships with and answers with
-     * replacements. Keeping it to strings is what guarantees the generated site
-     * is still the template the customer picked.
+     * Existing blocks are rewritten through numbered strings. When a kit is
+     * present, overflow content may use additional matching body blocks.
      */
-    public function templateCopySystemPrompt(): string
+    public function templateCopySystemPrompt(?array $kit = null): string
     {
         return implode("\n", [
             'You write website copy. You are given the existing copy of a template, one numbered slot at a time.',
-            'You return ONLY JSON: {"slots":[{"i":<number>,"text":"<replacement>"}]}.',
+            'You return ONLY JSON: {"slots":[{"i":<number>,"text":"<replacement>"}],"additional_blocks":[]}.',
+            $kit === null ? 'Leave additional_blocks empty.' : 'When the supplied content cannot fit the existing slots, add up to 6 additional_blocks using ONLY the supplied template body block types. Each has {"type":"...","props":{...}}. Add only missing topics, never duplicate existing content, navigation or footer. Preserve every existing block and its design. Never return theme changes. Leave additional_blocks empty when existing slots are enough.',
             'Rewrite every slot for the business described. Keep each replacement the same kind of thing and about the same length as the original: a two-word button label stays a two-word button label, a heading stays one line.',
             'Never invent prices, statistics, awards, addresses or contact details. If the original holds a number you cannot know, keep the original.',
             'Write plain text. No markdown, no HTML.',
@@ -208,6 +211,9 @@ class AiPromptBuilder
     public function templateCopyPrompt(Site $site, array $slots, array $input): string
     {
         $lines = ['Business name: '.($site->business_name ?: $site->name)];
+        if (! empty($input['page_name'])) {
+            $lines[] = 'Write content for this page only: '.$input['page_name'].' (/'.($input['page_slug'] ?? '').').';
+        }
         if ($site->category) {
             $lines[] = 'Industry: '.$site->category;
         }
@@ -223,6 +229,12 @@ class AiPromptBuilder
         }
         if (! empty($input['tone'])) {
             $lines[] = 'Tone of voice: '.$input['tone'];
+        }
+        if (isset($input['copy_kit'])) {
+            $kit = $input['copy_kit'];
+            $lines[] = 'Additional body blocks must use this template catalog and inherit its global settings:';
+            $lines[] = $this->catalogText(array_values(array_filter($kit['types'], static fn ($type) => ! preg_match('/^(navbar|topbar|subnav|footer)\./', $type))));
+            $lines[] = 'Inherited design: '.json_encode($kit['design']);
         }
 
         $lines[] = '';
@@ -287,7 +299,9 @@ class AiPromptBuilder
         }
 
         $lines[] = 'Navbar links.url values must match the page slugs you emit.';
-        $lines[] = 'Use generated.composition for page-specific sections that do not fit a standard purpose. Set blockName and create 2–6 complete regions; every region remains editable.';
+        if ($kit === null) {
+            $lines[] = 'Use generated.composition for page-specific sections that do not fit a standard purpose. Set blockName and create 2–6 complete regions; every region remains editable.';
+        }
         $lines[] = 'Never put descriptive prose into an image field and never invent an external image URL. With no uploaded image path, leave image empty and use a generated.composition visual.';
         $lines[] = 'Write all visible content now. Every heading, paragraph, CTA, question, answer, plan, and repeater item must be specific to this business request and ready to publish.';
         $lines[] = 'Do not use default/sample phrases from the catalog. Do not invent claims or people. When details are missing, use accurate process and benefit language rather than placeholders.';
@@ -442,7 +456,7 @@ class AiPromptBuilder
         // is no kit to preserve.
         $typeRule = $kit === null
             ? '- "type" MUST be a generated.* block type listed below. Never invent types. Never use catalog kits (hero.centered, navbar.cta, faq.accordion, and similar).'
-            : '- "type" MUST come from the "'.$kit['label'].'" kit block list below. Reuse the exact type a section already has unless the user asked for a different kind of section. Fall back to a generated.* type only when the kit has nothing for that purpose. Never invent types.';
+            : '- "type" MUST come from the "'.$kit['label'].'" kit block list below. Reuse the exact type a section already has unless the user asked for a different kind of section. New pages must only use kit blocks and preserve the global theme. Never invent types.';
 
         return implode("\n", [
             'You are a website-builder copilot in a chat. The user can follow up, revise, add pages, add blocks, and change the theme.',
@@ -569,7 +583,7 @@ class AiPromptBuilder
             if ($text === '') {
                 continue;
             }
-            $lines[] = $role.': '.mb_substr($text, 0, $role === 'User' ? 2000 : 400);
+            $lines[] = $role.': '.mb_substr($text, 0, $role === 'User' ? 50000 : 400);
         }
 
         // The live editor content is a better signal than the saved pages: it is

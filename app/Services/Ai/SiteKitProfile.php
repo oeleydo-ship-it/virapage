@@ -36,6 +36,7 @@ class SiteKitProfile
      * @var array<string, array{label: string, note: string}>
      */
     public const KIT_NOTES = [
+        'veloura' => ['label' => 'Veloura', 'note' => 'Editorial hair salon. Deep forest-green navigation and split portrait hero, warm white sections, amber buttons and golden process bands, large tight Inter headings, rounded service photography, a filterable lookbook, stylist profiles, client-story carousel, price menu and connected appointment inquiry. Eight pages with fourteen reusable blocks.'],
         'pawberry' => ['label' => 'Pawberry', 'note' => 'Friendly pet grooming studio. Fredoka rounded headings over Satoshi body, cream and pale butter backgrounds, brown text, yellow buttons, blue and coral accents, playful doodles, dog portrait hero, moving team strip, white service and pricing cards, photo testimonials and a video invitation.'],
         'sproutkind' => ['label' => 'Sproutkind', 'note' => 'Playful early-learning school: warm cream, sunny yellow, forest green, rounded photos, Parkinsans type, pinwheel motifs, video hero, filterable programs and gallery, interactive admissions and family stories.'],
         'concourse' => ['label' => 'Concourse', 'note' => 'Enterprise finance platform. Cinematic video hero, navy and white sections, large light-weight type, restrained motion, image cards, interactive agent reports, and editorial customer stories.'],
@@ -280,7 +281,7 @@ class SiteKitProfile
      */
     public function detect(Site $site, ?array $sections = null): ?array
     {
-        $sections = $sections ?? $this->siteSections($site);
+        $sections = $sections ?: $this->siteSections($site);
         if ($sections === []) {
             return null;
         }
@@ -299,6 +300,9 @@ class SiteKitProfile
         }
 
         if ($counts === []) {
+            if ($site->exists && $sections !== $this->siteSections($site)) {
+                return $this->detect($site);
+            }
             return null;
         }
 
@@ -395,6 +399,54 @@ class SiteKitProfile
             $sections[$index]['props'] = $props;
         }
 
+        return $sections;
+    }
+
+    /** Reuse the established navigation and footer, including their styling and links. */
+    public function matchPageChrome(Site $site, array $sections): array
+    {
+        $chrome = [];
+        foreach ($this->siteSections($site) as $section) {
+            $purpose = explode('.', (string) ($section['type'] ?? ''))[0];
+            if (in_array($purpose, ['navbar', 'footer'], true) && ! isset($chrome[$purpose])) {
+                $chrome[$purpose] = $section;
+            }
+        }
+        foreach ($chrome as $purpose => $source) {
+            $sections = array_values(array_filter($sections, static fn ($section) =>
+                ! str_starts_with((string) ($section['type'] ?? ''), $purpose.'.')
+                && ($section['type'] ?? '') !== ($purpose === 'navbar' ? 'generated.nav' : 'generated.footer')));
+            $source = \App\Support\AiGeneratedSite::cloneSection($source);
+            if ($purpose === 'navbar') {
+                array_unshift($sections, $source);
+            } else {
+                $sections[] = $source;
+            }
+        }
+        return $sections;
+    }
+
+    /** Copy each block's established styling without replacing its new content. */
+    public function matchPageStyles(Site $site, array $sections, ?array $live = null): array
+    {
+        $sources = [];
+        foreach (array_merge($live ?? [], $this->siteSections($site)) as $source) {
+            $sources[$source['type']] ??= $source['props'] ?? [];
+        }
+        foreach ($sections as &$section) {
+            $source = $sources[$section['type']] ?? [];
+            foreach (BlockCatalog::fieldMap($section['type']) as $key => $field) {
+                if (! in_array($field['group'] ?? '', ['design', 'layout', 'typography', 'spacing', 'background', 'animation'], true) || $key === 'anchorId') {
+                    continue;
+                }
+                if (array_key_exists($key, $source)) {
+                    $section['props'][$key] = $source[$key];
+                } else {
+                    // Unset overrides inherit the template block and site theme.
+                    unset($section['props'][$key]);
+                }
+            }
+        }
         return $sections;
     }
 

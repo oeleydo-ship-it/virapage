@@ -80,7 +80,7 @@ class AiController extends Controller
     {
         $data = $request->validate([
             'site_id' => ['required'],
-            'prompt' => ['required', 'string', 'min:8', 'max:2000'],
+            'prompt' => ['required', 'string', 'min:8', 'max:50000'],
             'page_name' => ['nullable', 'string', 'max:120'],
             'page_type' => ['nullable', 'string', 'max:60'],
             'tone' => ['nullable', 'string', 'max:60'],
@@ -126,8 +126,9 @@ class AiController extends Controller
     {
         $data = $request->validate([
             'site_id' => ['required'],
-            'prompt' => ['nullable', 'string', 'max:2000'],
+            'prompt' => ['nullable', 'string', 'max:50000'],
             'tone' => ['nullable', 'string', 'max:60'],
+            'page_id' => ['nullable', 'integer'],
         ]);
 
         $site = $this->site($data['site_id']);
@@ -136,12 +137,19 @@ class AiController extends Controller
         $this->allowLongRunning();
 
         $site->loadMissing('pages.draftRevision');
+        $targetPages = $site->pages;
+        if (isset($data['page_id'])) {
+            $targetPages = $targetPages->where('id', $data['page_id']);
+            abort_if($targetPages->isEmpty(), 404);
+        }
         $rewrittenPages = 0;
         $slots = 0;
         $rewritten = 0;
+        $added = 0;
         $failed = [];
+        $lastFailure = null;
 
-        foreach ($site->pages as $page) {
+        foreach ($targetPages as $page) {
             $content = $page->draftRevision?->content_json ?? [];
             $sections = is_array($content['sections'] ?? null) ? $content['sections'] : [];
             if ($sections === []) {
@@ -149,16 +157,17 @@ class AiController extends Controller
             }
 
             try {
-                $result = $this->generator->generateTemplateCopy($site, $sections, $data);
+                $result = $this->generator->generateTemplateCopy($site, $sections, $data + ['page_name' => $page->name, 'page_slug' => $page->slug]);
             } catch (AiException $exception) {
                 // One page failing must not lose the pages already rewritten,
                 // and a half-written site is reported rather than hidden.
                 $failed[] = $page->slug ?: (string) $page->id;
+                $lastFailure = $exception;
 
                 continue;
             }
 
-            if ($result['report']['rewritten'] === 0) {
+            if ($result['report']['rewritten'] === 0 && ($result['report']['added'] ?? 0) === 0) {
                 continue;
             }
 
@@ -166,16 +175,18 @@ class AiController extends Controller
             $rewrittenPages++;
             $slots += $result['report']['slots'];
             $rewritten += $result['report']['rewritten'];
+            $added += $result['report']['added'] ?? 0;
         }
 
         if ($rewrittenPages === 0) {
-            throw AiException::invalidOutput('The AI could not rewrite this site. Try again, or edit the copy by hand.');
+            throw $lastFailure ?? AiException::invalidOutput('The AI could not rewrite this site. Try again, or edit the copy by hand.');
         }
 
         $this->audit->log('ai.template_copy_generated', $site, [
             'pages' => $rewrittenPages,
             'slots' => $slots,
             'rewritten' => $rewritten,
+            'added' => $added,
             'failed_pages' => $failed,
             'provider' => $this->settings->config()->provider,
         ], $site->workspace, $request->user());
@@ -184,6 +195,7 @@ class AiController extends Controller
             'pages' => $rewrittenPages,
             'slots' => $slots,
             'rewritten' => $rewritten,
+            'added' => $added,
             'failed_pages' => $failed,
             'usage' => $this->usage($site),
         ]]);
@@ -199,7 +211,7 @@ class AiController extends Controller
             'is_homepage' => ['sometimes', 'boolean'],
             'messages' => ['required', 'array', 'min:1', 'max:24'],
             'messages.*.role' => ['required', 'in:user,assistant'],
-            'messages.*.content' => ['required', 'string', 'max:4000'],
+            'messages.*.content' => ['required', 'string', 'max:50000'],
             'existing_pages' => ['nullable', 'array', 'max:20'],
             'existing_pages.*.name' => ['nullable', 'string', 'max:120'],
             'existing_pages.*.slug' => ['nullable', 'string', 'max:120'],
@@ -250,7 +262,7 @@ class AiController extends Controller
             'is_homepage' => ['sometimes', 'boolean'],
             'messages' => ['required', 'array', 'min:1', 'max:24'],
             'messages.*.role' => ['required', 'in:user,assistant'],
-            'messages.*.content' => ['required', 'string', 'max:4000'],
+            'messages.*.content' => ['required', 'string', 'max:50000'],
             'existing_pages' => ['nullable', 'array', 'max:20'],
             'existing_pages.*.name' => ['nullable', 'string', 'max:120'],
             'existing_pages.*.slug' => ['nullable', 'string', 'max:120'],
@@ -420,7 +432,7 @@ class AiController extends Controller
     {
         $data = $request->validate([
             'site_id' => ['required'],
-            'prompt' => ['required', 'string', 'min:3', 'max:2000'],
+            'prompt' => ['required', 'string', 'min:3', 'max:50000'],
             'type' => ['nullable', 'string', 'max:80'],
             'tone' => ['nullable', 'string', 'max:60'],
             'props' => ['nullable', 'array'],

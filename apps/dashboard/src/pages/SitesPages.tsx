@@ -1,12 +1,13 @@
 import { SITE_CATEGORIES, type Site, type Template } from '@uidesired/types'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Check, Globe, LayoutGrid, List, Loader2, Plus, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { SiteCard, SiteCardSkeleton, type SiteCardLayout } from '../components/SiteCard'
 import { TEMPLATE_PREVIEW_HEIGHT, TemplateLivePreview, TemplatePreviewAssets } from '../components/TemplatePreview'
 import { TemplateSearchBar } from '../components/TemplateSearchBar'
 import { TemplateSelectModal } from '../components/TemplateSelectModal'
+import { createSiteContent, type CreationProgress } from '../lib/createSiteContent'
 import { templatePreviewPath } from '../lib/templatePreview'
 import { aiApi, sitesApi, subdomainsApi, templatesApi } from '../lib/endpoints'
 import { atCap, featureEnabled, useSubscription } from '../lib/plan'
@@ -286,7 +287,9 @@ export function CreateSitePage() {
   // What to write about, in the customer's own words. Falls back to the
   // description from step 1 when they leave it empty.
   const [copyBrief, setCopyBrief] = useState('')
-  const [copyError, setCopyError] = useState<string | null>(null)
+  const creationProgress = useRef<CreationProgress>({ completed: new Set() })
+  const [creationMessage, setCreationMessage] = useState('Creating…')
+  const queryClient = useQueryClient()
   const aiStatus = useQuery({ queryKey: ['ai-status'], queryFn: aiApi.status })
   const [checking, setChecking] = useState(false)
   const templates = useQuery({ queryKey: ['templates'], queryFn: templatesApi.list })
@@ -318,40 +321,20 @@ export function CreateSitePage() {
         ? templates.data?.find((item) => item.slug === presetSlug)?.id
         : undefined
       const selectedTemplateId = template_id ?? presetTemplateId
-      const site = await sitesApi.create({
+      return createSiteContent(creationProgress.current, {
         name,
         business_name,
         category,
         description,
         subdomain: subdomain || undefined,
         template_id: selectedTemplateId || undefined,
-      })
-
-      // Applying is idempotent: existing slugs are updated, missing template
-      // pages are created. This is an explicit import guarantee before the
-      // builder opens, even if site creation returned after a blank fallback.
-      const created = selectedTemplateId ? await sitesApi.applyTemplate(site.id, selectedTemplateId) : site
-
-      /**
-       * Rewrite the template's copy for this business, once the template is in
-       * place. Deliberately after and separate: the site already exists and is
-       * usable, so a model that is slow, rate-limited or misconfigured costs
-       * the customer nothing but the copy they can still write themselves.
-       */
-      if (writeCopy && selectedTemplateId) {
-        try {
-          await aiApi.generateTemplateCopy({
-            site_id: site.id,
-            prompt: copyBrief.trim() || description || undefined,
-          })
-        } catch (error) {
-          setCopyError(errorText(error, 'The website was created, but the AI could not write its copy.'))
-        }
-      }
-
-      return created
+      }, writeCopy, copyBrief.trim() || description || undefined, setCreationMessage)
     },
-    onSuccess: (site) => navigate(`/sites/${site.id}/builder`),
+    onSuccess: async (site) => {
+      await queryClient.invalidateQueries({ queryKey: ['pages', String(site.id)] })
+      await queryClient.invalidateQueries({ queryKey: ['sites'] })
+      navigate(`/sites/${site.id}/builder`)
+    },
   })
 
   useEffect(() => {
@@ -441,6 +424,7 @@ export function CreateSitePage() {
                       : 'border-zinc-800 text-zinc-500'
                 }`}
                 onClick={() => {
+                  if (create.isPending || creationProgress.current.site) return
                   if (n < step || (n === 2 && name.trim()) || (n === 3 && name.trim()) || (n === 4 && name.trim() && subdomainOk)) {
                     setStep(n)
                   }
@@ -674,7 +658,7 @@ export function CreateSitePage() {
                 <span className="block text-zinc-200">Write the copy for my business</span>
                 <span className="block text-xs text-zinc-500">
                   Rewrites {selectedTemplate.name}&rsquo;s words for {business_name || name || 'this business'}. The
-                  design, the blocks and their order stay exactly as the template has them.
+                  existing design and block order are preserved. Matching template sections can be added when your content needs more room.
                 </span>
               </span>
             </label>
@@ -683,40 +667,45 @@ export function CreateSitePage() {
             <label className="block text-xs text-zinc-500">
               What should it say?
               <textarea
-                className="mt-1 h-24 w-full resize-y rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
+                className="mt-1 h-48 w-full resize-y rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-600"
                 placeholder={'e.g. Write the content for my website — a web developer in Dubai building fast, custom sites for small businesses. Friendly and direct.'}
                 value={copyBrief}
                 onChange={(event) => setCopyBrief(event.target.value)}
                 disabled={create.isPending}
-                maxLength={2000}
+                maxLength={50000}
               />
               <span className="mt-1 block">
                 {copyBrief.trim()
-                  ? 'Say what you do, who it is for, and the tone you want.'
+                  ? 'Include your complete business details, services, audience, and tone. Up to 50,000 characters.'
                   : description
                     ? 'Leave this empty and the description from step 1 is used.'
                     : 'Leave this empty and only the website name and category are used.'}
               </span>
             </label>
           ) : null}
-          {copyError ? <p className="text-sm text-amber-400">{copyError}</p> : null}
+          {create.isError && creationProgress.current.site ? (
+            <p className="text-sm text-amber-500" role="status">Your website is saved. AI content is not complete yet. Retry to continue without creating another website.</p>
+          ) : null}
           {create.isError ? (
             <p className="text-sm text-red-400">{create.error instanceof Error ? create.error.message : 'Could not create website.'}</p>
           ) : null}
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setStep(3)} disabled={create.isPending}>
+            <Button variant="outline" onClick={() => setStep(3)} disabled={create.isPending || Boolean(creationProgress.current.site)}>
               Back
             </Button>
-            <Button disabled={create.isPending || sitesCapped} onClick={() => create.mutate()} title={sitesCapped ? 'Upgrade to create more websites' : undefined}>
+            <Button disabled={create.isPending || (sitesCapped && !creationProgress.current.site)} onClick={() => create.mutate()} title={sitesCapped ? 'Upgrade to create more websites' : undefined}>
               {create.isPending ? (
                 <>
                   <Loader2 size={15} className="animate-spin" />
-                  {writeCopy && selectedTemplate ? 'Writing your copy…' : 'Creating…'}
+                  {creationMessage}
                 </>
               ) : (
-                'Create website'
+                creationProgress.current.site ? 'Retry AI content' : 'Create website'
               )}
             </Button>
+            {create.isError && creationProgress.current.site ? (
+              <Button variant="outline" onClick={() => navigate(`/sites/${creationProgress.current.site!.id}/builder`)}>Open saved website</Button>
+            ) : null}
           </div>
         </Card>
       )}

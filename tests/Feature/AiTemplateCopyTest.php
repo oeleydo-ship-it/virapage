@@ -131,19 +131,20 @@ it('never lets the model introduce or remove a block', function () {
 
 it('sends the business details and the existing copy to the model', function () {
     $fx = copyFixture();
+    $brief = str_repeat('Complete business details. ', 1800).'Final requirement: family dental practice';
     FakeAiProvider::push(json_encode(['slots' => [['i' => 0, 'text' => 'Anything']]]));
 
     test()->withHeaders($fx['headers'])
         ->postJson('/api/v1/ai/generate-template-copy', [
             'site_id' => $fx['site'],
-            'prompt' => 'We are a family dental practice',
+            'prompt' => $brief,
             'tone' => 'warm',
         ])->assertOk();
 
     $prompt = FakeAiProvider::calls()[0]['prompt'];
 
     expect($prompt)->toContain('Copy Site')
-        ->toContain('We are a family dental practice')
+        ->toContain($brief)
         ->toContain('warm')
         // The template's own words are the starting point.
         ->toContain('Template heading')
@@ -161,6 +162,23 @@ it('refuses when the model returns nothing usable', function () {
 
     // And the template's copy is left exactly as it was.
     expect(draftSections($fx['page'])[1]['props']['heading'])->toBe('Template heading');
+});
+
+it('saves generated copy to the requested page draft before responding', function () {
+    $fx = copyFixture();
+    FakeAiProvider::push(json_encode(['slots' => [['i' => 1, 'text' => 'Fresh bakery content']]]));
+    test()->withHeaders($fx['headers'])->postJson('/api/v1/ai/generate-template-copy', [
+        'site_id' => $fx['site'], 'page_id' => $fx['page']->id, 'prompt' => 'Write about our bakery',
+    ])->assertOk()->assertJsonPath('data.pages', 1);
+    expect(draftSections($fx['page'])[1]['props']['heading'])->toBe('Fresh bakery content');
+});
+
+it('does not generate content for a page outside the requested site', function () {
+    $fx = copyFixture();
+    test()->withHeaders($fx['headers'])->postJson('/api/v1/ai/generate-template-copy', [
+        'site_id' => $fx['site'], 'page_id' => 999999,
+    ])->assertNotFound();
+    expect(FakeAiProvider::calls())->toBe([]);
 });
 
 it('keeps the copy slots away from other workspaces', function () {

@@ -1,6 +1,6 @@
 import type { BlockField } from '@uidesired/types'
 import type { ElementStyleMap, ElementTextStyle } from './editable'
-import { backgroundLayers, pathId, type EditPath } from './editable'
+import { backgroundLayers, imageStyleVariables, pathId, type EditPath } from './editable'
 import { quoteFontStack } from './theme'
 
 export type PreviewDevice = 'desktop' | 'tablet' | 'mobile'
@@ -205,13 +205,17 @@ function cssValue(key: string, value: unknown): string | undefined {
 
 function elementDecls(style: ElementTextStyle): string {
   const decls: string[] = []
-  for (const key of ['backgroundColor', 'borderColor', 'width', 'boxShadow'] as const) {
+  for (const key of ['backgroundColor', 'borderColor', 'width', 'height', 'maxWidth', 'maxHeight', 'aspectRatio', 'objectFit', 'objectPosition', 'marginLeft', 'marginRight', 'boxShadow'] as const) {
     if (style[key]) decls.push(`${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${style[key]} !important`)
   }
-  for (const key of ['borderWidth', 'borderRadius', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight'] as const) {
+  for (const key of ['borderWidth', 'borderRadius', 'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight', 'marginTop', 'marginBottom'] as const) {
     if (typeof style[key] === 'number' && Number.isFinite(style[key])) decls.push(`${key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}:${style[key]}px !important`)
   }
   if (style.borderWidth !== undefined) decls.push('border-style:solid !important')
+  if (typeof style.opacity === 'number' && Number.isFinite(style.opacity)) decls.push(`opacity:${style.opacity} !important`)
+  for (const [key, value] of Object.entries(imageStyleVariables(style))) {
+    if (value !== undefined) decls.push(`${key}:${value} !important`)
+  }
   const layers = backgroundLayers(style)
   if (layers) {
     decls.push(`background-image:${layers.image} !important`)
@@ -232,9 +236,9 @@ function elementDecls(style: ElementTextStyle): string {
   if (typeof style.lineHeight === 'number') decls.push(`line-height:${style.lineHeight} !important`)
   if (typeof style.letterSpacing === 'number') decls.push(`letter-spacing:${style.letterSpacing}px !important`)
   if (style.textAlign) decls.push(`text-align:${style.textAlign} !important`)
-  if (style.textTransform && style.textTransform !== 'none') decls.push(`text-transform:${style.textTransform} !important`)
-  if (style.fontStyle === 'italic') decls.push('font-style:italic !important')
-  if (style.textDecoration === 'underline') decls.push('text-decoration:underline !important')
+  if (style.textTransform) decls.push(`text-transform:${style.textTransform} !important`)
+  if (style.fontStyle) decls.push(`font-style:${style.fontStyle} !important`)
+  if (style.textDecoration) decls.push(`text-decoration:${style.textDecoration} !important`)
   return decls.join(';')
 }
 
@@ -275,7 +279,7 @@ export function responsiveSectionCss(sectionId: string, props: Record<string, un
       layer.elementStyles && typeof layer.elementStyles === 'object' ? (layer.elementStyles as ElementStyleMap) : {}
     for (const [path, style] of Object.entries(styles)) {
       const decls = elementDecls(style)
-      if (decls) parts.push(`${root} [data-ud-style="${escapeCss(path)}"]{${decls}}`)
+      if (decls) parts.push(`${root} [data-ud-style="${escapeCss(path)}"],${root} [data-ud-image-style="${escapeCss(path)}"]{${decls}}`)
     }
     chunks.push(wrapMedia(device, parts.join('')))
   }

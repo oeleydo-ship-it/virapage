@@ -42,6 +42,17 @@ export type ElementTextStyle = {
   paddingLeft?: number
   paddingRight?: number
   width?: string
+  height?: string
+  maxWidth?: string
+  maxHeight?: string
+  aspectRatio?: string
+  objectFit?: 'cover' | 'contain' | 'fill' | 'none' | 'scale-down'
+  objectPosition?: string
+  opacity?: number
+  marginTop?: number
+  marginBottom?: number
+  marginLeft?: string
+  marginRight?: string
   boxShadow?: string
   color?: string
   fontFamily?: string
@@ -142,7 +153,7 @@ export function useElementStyle(path: EditPath): CSSProperties | undefined {
   const lineHeight = typeof value.lineHeight === 'number' && Number.isFinite(value.lineHeight) ? value.lineHeight : undefined
   const letterSpacing = typeof value.letterSpacing === 'number' && Number.isFinite(value.letterSpacing) ? `${value.letterSpacing}px` : undefined
   const layers = backgroundLayers(value)
-  return {
+  const style: CSSProperties = {
     backgroundColor: value.backgroundColor || undefined,
     backgroundImage: layers?.image,
     backgroundSize: layers?.size,
@@ -163,6 +174,17 @@ export function useElementStyle(path: EditPath): CSSProperties | undefined {
     paddingLeft: value.paddingLeft,
     paddingRight: value.paddingRight,
     width: value.width || undefined,
+    height: value.height || undefined,
+    maxWidth: value.maxWidth || undefined,
+    maxHeight: value.maxHeight || undefined,
+    aspectRatio: value.aspectRatio || undefined,
+    objectFit: value.objectFit,
+    objectPosition: value.objectPosition,
+    opacity: value.opacity,
+    marginTop: value.marginTop,
+    marginBottom: value.marginBottom,
+    marginLeft: value.marginLeft,
+    marginRight: value.marginRight,
     boxShadow: value.boxShadow || undefined,
     color: value.color || undefined,
     fontFamily: value.fontFamily ? quoteFontStack(value.fontFamily) : undefined,
@@ -171,10 +193,34 @@ export function useElementStyle(path: EditPath): CSSProperties | undefined {
     lineHeight,
     letterSpacing,
     textAlign: value.textAlign || undefined,
-    textTransform: value.textTransform === 'none' ? undefined : value.textTransform,
-    fontStyle: value.fontStyle === 'italic' ? 'italic' : undefined,
-    textDecoration: value.textDecoration === 'underline' ? 'underline' : undefined,
+    textTransform: value.textTransform,
+    fontStyle: value.fontStyle,
+    textDecoration: value.textDecoration,
+    ...imageStyleVariables(value),
   }
+  return Object.fromEntries(Object.entries(style).filter(([, entry]) => entry !== undefined))
+}
+
+/** Image frames own dimensions; their image uses these variables for fitting. */
+export function imageStyleVariables(value: ElementTextStyle): CSSProperties {
+  const fittedHeight = value.height && value.height !== 'auto' || value.aspectRatio && value.aspectRatio !== 'auto'
+  return {
+    '--ud-element-image-fit': value.objectFit,
+    '--ud-element-image-width': value.width && value.width !== 'auto' ? '100%' : undefined,
+    '--ud-element-logo-height': value.width && value.width !== 'auto' && !value.height ? 'auto' : undefined,
+    '--ud-element-image-position': value.objectPosition,
+    '--ud-element-image-layout': !fittedHeight && (value.height === 'auto' || value.aspectRatio === 'auto') ? 'relative' : fittedHeight ? 'absolute' : undefined,
+    '--ud-element-image-height': fittedHeight ? '100%' : value.height === 'auto' || value.aspectRatio === 'auto' ? 'auto' : undefined,
+  } as CSSProperties
+}
+
+/** Shared wrapper for independently adjustable cards, links and media frames. */
+export function ElementBox({ as: Tag = 'div', path, className, style, children }: {
+  as?: 'div' | 'span' | 'figure' | 'article'; path: EditPath; className?: string; style?: CSSProperties; children: ReactNode
+}) {
+  const saved = useElementStyle(path)
+  const overrides = saved ? Object.fromEntries(Object.entries(saved).filter(([, value]) => value !== undefined)) : {}
+  return <Tag className={className} style={{ ...style, ...overrides }} data-ud-style={pathId(path)}>{children}</Tag>
 }
 
 /**
@@ -237,7 +283,8 @@ export function EditableText({
   transform,
 }: EditableProps) {
   const elementStyle = useElementStyle(path)
-  const resolvedStyle = elementStyle ? { ...style, ...elementStyle } : style
+  const needsBox = (Tag === 'span' || Tag === 'strong') && elementStyle && ['width', 'height', 'maxWidth', 'paddingTop', 'paddingBottom', 'marginTop', 'marginBottom'].some(key => elementStyle[key as keyof CSSProperties] !== undefined)
+  const resolvedStyle = elementStyle ? { ...style, ...elementStyle, ...(needsBox ? { display: 'inline-block' } : {}) } : style
   const shown = children ?? value
   if (!edit) {
     if (!value && !children) return null

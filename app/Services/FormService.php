@@ -198,7 +198,7 @@ class FormService
             }
             $kind = substr($section['type'], 5);
             // Editorial template variants still submit to a normal platform form.
-            if ($kind === 'cinder' || $kind === 'lumen_contact' || $kind === 'sproutkind' || $kind === 'pawberry') {
+            if ($kind === 'cinder' || $kind === 'lumen_contact' || $kind === 'sproutkind' || $kind === 'pawberry' || $kind === 'veloura') {
                 $kind = 'contact';
             } elseif ($kind === 'lumen_booking') {
                 $kind = 'quote';

@@ -155,8 +155,9 @@ it('answers copy mode without asking the model to route it', function () {
     expect($calls[0]['prompt'])->toContain('Rewrite the content for a bakery.');
 });
 
-it('carries the business context into the rewrite so the copy is on topic', function () {
+it('carries the complete long business brief into the rewrite', function () {
     ['headers' => $headers, 'site' => $siteId] = chatCopyFixture();
+    $brief = str_repeat('Business details and services. ', 1600).'Final instruction: family bakery in Leeds.';
 
     FakeAiProvider::push(slotReply(40));
 
@@ -165,13 +166,13 @@ it('carries the business context into the rewrite so the copy is on topic', func
             'site_id' => $siteId,
             'generation_mode' => 'copy',
             'current_content' => ['schemaVersion' => 1, 'sections' => volteraPage()],
-            'messages' => [['role' => 'user', 'content' => 'We are a family bakery in Leeds.']],
+            'messages' => [['role' => 'user', 'content' => $brief]],
         ])
         ->assertOk();
 
     $prompt = FakeAiProvider::calls()[0]['prompt'];
     expect($prompt)->toContain('Kit Site');
-    expect($prompt)->toContain('We are a family bakery in Leeds.');
+    expect($prompt)->toContain($brief);
     // The existing copy is what the model is asked to replace, slot by slot.
     expect($prompt)->toContain('Template heading');
 });
@@ -281,6 +282,97 @@ it('still forbids catalog kits when no kit could be chosen', function () {
         ->assertOk();
 
     expect(FakeAiProvider::calls()[1]['system'])->toContain('Never use catalog kits');
+});
+
+it('inherits the saved template when generating from an empty new page', function () {
+    ['headers' => $headers, 'site' => $siteId, 'page' => $page] = chatCopyFixture();
+    $existing = volteraPage();
+    $existing[1]['props']['headingColor'] = '#123456';
+    $this->withHeaders($headers)->putJson('/api/v1/pages/'.$page->id.'/draft', [
+        'content' => ['schemaVersion' => 1, 'sections' => $existing],
+    ])->assertOk();
+
+    FakeAiProvider::push(json_encode([
+        'action' => 'create_page',
+        'theme' => ['primary' => '#ff0000'],
+        'pages' => [['name' => 'About', 'slug' => 'about', 'sections' => [[
+            'type' => 'hero.voltera',
+            'props' => ['heading' => 'Our new story', 'headingColor' => '#ff0000', 'contentWidth' => 'narrow'],
+        ]]]],
+    ]));
+
+    $result = $this->withHeaders($headers)->postJson('/api/v1/ai/chat', [
+        'site_id' => $siteId,
+        'current_content' => ['schemaVersion' => 1, 'sections' => []],
+        'messages' => [['role' => 'user', 'content' => 'Create an About page']],
+    ])->assertOk()->json('data');
+
+    expect(FakeAiProvider::calls())->toHaveCount(1);
+    expect($result['theme'])->toBe([]);
+    $sections = $result['pages'][0]['content']['sections'];
+    expect($sections[0]['props'])->toBe($existing[0]['props']);
+    $hero = collect($sections)->firstWhere('type', 'hero.voltera');
+    expect($hero['props']['heading'])->toBe('Our new story')
+        ->and($hero['props']['headingColor'])->toBe('#123456')
+        ->and($hero['props']['contentWidth'])->toBe('wide');
+    expect(end($sections)['props'])->toBe($existing[4]['props']);
+});
+
+it('rejects a new page built from a different template', function () {
+    ['headers' => $headers, 'site' => $siteId] = chatCopyFixture();
+    FakeAiProvider::push(json_encode([
+        'action' => 'create_page',
+        'pages' => [['name' => 'About', 'slug' => 'about', 'sections' => [[
+            'type' => 'hero.halcyon', 'props' => ['heading' => 'Different design'],
+        ]]]],
+    ]));
+    $this->withHeaders($headers)->postJson('/api/v1/ai/chat', [
+        'site_id' => $siteId,
+        'current_content' => ['schemaVersion' => 1, 'sections' => volteraPage()],
+        'messages' => [['role' => 'user', 'content' => 'Create an About page']],
+    ])->assertStatus(422);
+});
+
+it('adds matching sections for overflow content without changing existing blocks', function () {
+    ['headers' => $headers, 'site' => $siteId] = chatCopyFixture();
+    $existing = volteraPage();
+    FakeAiProvider::push(json_encode([
+        'slots' => [],
+        'additional_blocks' => [[
+            'type' => 'services.voltera',
+            'props' => ['heading' => 'Additional services', 'contentWidth' => 'narrow', 'headingColor' => '#ff0000'],
+        ]],
+    ]));
+    $result = $this->withHeaders($headers)->postJson('/api/v1/ai/chat', [
+        'site_id' => $siteId,
+        'generation_mode' => 'copy',
+        'current_content' => ['schemaVersion' => 1, 'sections' => $existing],
+        'messages' => [['role' => 'user', 'content' => 'Include our additional services when the existing blocks are not enough.']],
+    ])->assertOk()->json('data');
+    expect($result['report']['added'])->toBe(1)
+        ->and($result['theme'])->toBe([])
+        ->and($result['sections'])->toHaveCount(6);
+    $added = $result['sections'][4];
+    expect($added['type'])->toBe('services.voltera')
+        ->and($added['props']['contentWidth'])->toBe('wide')
+        ->and($added['props'])->not->toHaveKey('headingColor');
+    $after = $result['sections'];
+    array_splice($after, 4, 1);
+    expect($after)->toBe($existing);
+});
+
+it('rejects overflow blocks from another template', function () {
+    ['headers' => $headers, 'site' => $siteId] = chatCopyFixture();
+    FakeAiProvider::push(json_encode([
+        'slots' => [['i' => 0, 'text' => 'Updated brand']],
+        'additional_blocks' => [['type' => 'hero.halcyon', 'props' => ['heading' => 'Foreign design']]],
+    ]));
+    $this->withHeaders($headers)->postJson('/api/v1/ai/chat', [
+        'site_id' => $siteId,
+        'generation_mode' => 'copy',
+        'current_content' => ['schemaVersion' => 1, 'sections' => volteraPage()],
+        'messages' => [['role' => 'user', 'content' => 'Add the missing content.']],
+    ])->assertStatus(422);
 });
 
 it('explains itself rather than rewriting an empty page', function () {

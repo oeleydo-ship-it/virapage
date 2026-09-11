@@ -11,6 +11,7 @@ class TemplateSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(VelouraTemplateSeeder::class);
         $this->call(PawberryTemplateSeeder::class);
         $this->call(SproutkindTemplateSeeder::class);
         $this->call(ConcourseTemplateSeeder::class);

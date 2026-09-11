@@ -42,7 +42,7 @@ const GENERATION_MODES: Array<{ id: AiGenerationMode; label: string; hint: strin
   { id: 'auto', label: 'Auto', hint: 'AI chooses the smallest useful scope' },
   { id: 'full_site', label: 'Website', hint: 'Build a complete multi-page website' },
   { id: 'current_page', label: 'Page', hint: 'Replace and improve the current page' },
-  { id: 'copy', label: 'Copy', hint: 'Rewrite the words only — layout and design stay put' },
+  { id: 'copy', label: 'Content', hint: 'Keep the design; add matching template sections when the content needs more room' },
   { id: 'blocks', label: 'Blocks', hint: 'Insert new sections into this page' },
 ]
 
@@ -131,7 +131,7 @@ export function AiPanel({
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>(null)
-  const [generationMode, setGenerationMode] = useState<AiGenerationMode>('auto')
+  const [generationMode, setGenerationMode] = useState<AiGenerationMode>(() => useEditorStore.getState().content.sections.length ? 'copy' : 'auto')
   const [requestedPages, setRequestedPages] = useState(5)
   const [progress, setProgress] = useState(0)
   const [generationLines, setGenerationLines] = useState<GenerationLine[]>([])
@@ -161,7 +161,11 @@ export function AiPanel({
   const canSend = Boolean(status?.available && status.entitled && remaining > 0) && !busy && draft.trim().length > 0
 
   useEffect(() => {
-    sessionStorage.setItem(storageKey(siteId), JSON.stringify(messages.slice(-24)))
+    try {
+      sessionStorage.setItem(storageKey(siteId), JSON.stringify(messages.slice(-24)))
+    } catch {
+      // Long briefs may exceed browser storage; keep the active chat usable.
+    }
   }, [messages, siteId])
 
   useEffect(() => {
@@ -189,12 +193,13 @@ export function AiPanel({
       return applyPages(pages, nextTheme, result.action)
     }
 
-    // Copy-only: the server returned the page's own blocks with new words in
-    // them, so this swaps content without touching which blocks are on the page.
+    // The server preserves existing blocks and may add styled kit sections.
     if (result.action === 'rewrite_copy' && sections.length) {
       useHistoryStore.getState().push(useEditorStore.getState().content)
       useEditorStore.getState().setContent({ schemaVersion: 1, sections }, true)
       const rewritten = result.report?.rewritten
+      const added = result.report?.added ?? 0
+      if (added > 0) return `Updated the content and added ${added} matching template section${added === 1 ? '' : 's'}. Existing design preserved.`
       return typeof rewritten === 'number'
         ? `Rewrote ${rewritten} piece${rewritten === 1 ? '' : 's'} of copy. The layout is unchanged.`
         : 'Rewrote the copy. The layout is unchanged.'
@@ -580,11 +585,12 @@ export function AiPanel({
           </div>
           <div className="flex items-end gap-2 rounded-xl border border-zinc-300 bg-zinc-50 px-2 py-2 focus-within:border-blue-400 focus-within:bg-white">
             <textarea
-              className="max-h-32 min-h-[2.75rem] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
-              rows={2}
+              className="max-h-96 min-h-[8rem] flex-1 resize-y bg-transparent px-2 py-1.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+              rows={6}
+              maxLength={50000}
               value={draft}
               disabled={busy || platformOff || notConfigured || planBlocked}
-              placeholder="Ask for a site, a new page, a block, or a theme change…"
+              placeholder={generationMode === 'copy' ? 'Paste your complete business details. Your design stays the same; matching sections can be added when needed.' : 'Describe your website, pages, services, and business details…'}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
@@ -597,7 +603,7 @@ export function AiPanel({
               <ArrowUp size={16} />
             </Button>
           </div>
-          <p className="mt-2 text-[11px] text-zinc-500">Enter to send · Shift+Enter for a new line</p>
+          <p className="mt-2 text-[11px] text-zinc-500">{draft.length.toLocaleString()} / 50,000 characters · Enter to send · Shift+Enter for a new line</p>
         </form>
       </div>
     </div>

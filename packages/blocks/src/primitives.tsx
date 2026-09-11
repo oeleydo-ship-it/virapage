@@ -1,6 +1,6 @@
-import { useEffect, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
+import { Children, isValidElement, useEffect, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { EditableImage, EditableRich, EditableText, EDIT_PROP, editOf, useColumnAttrs, useElementStyle, type EditBinding, type EditPath } from './editable'
+import { EditableImage, EditableRich, EditableText, ElementBox, EDIT_PROP, editOf, pathId, useColumnAttrs, useElementStyle, type EditBinding, type EditPath } from './editable'
 import { Icon } from './icons'
 import { markdownBoldToHtml, sanitizeRichText } from './sanitize'
 import { ANIMATION_IDS } from './schema'
@@ -654,6 +654,9 @@ export function Button({
   stylePath?: EditPath
 }) {
   // Called unconditionally; an empty path simply resolves to no stored style.
+  const labelChild = Children.toArray(children).find(child => isValidElement<{ path?: EditPath }>(child) && Array.isArray(child.props.path))
+  const labelPath = isValidElement<{ path?: EditPath }>(labelChild) ? labelChild.props.path : undefined
+  stylePath = stylePath ?? (labelPath ? [...labelPath, '$box'] : undefined)
   const box = useElementStyle(stylePath ?? [])
   // useElementStyle fills every key, so undefined entries are dropped rather
   // than allowed to clobber a style the block passed in itself.
@@ -662,7 +665,7 @@ export function Button({
 
   if (_type) {
     return (
-      <button className={cx('ud-btn', `ud-btn--${variant}`, className)} type={_type} disabled={disabled} style={style}>
+      <button className={cx('ud-btn', `ud-btn--${variant}`, className)} type={_type} disabled={disabled} style={style} data-ud-style={stylePath ? pathId(stylePath) : undefined}>
         {children}
       </button>
     )
@@ -675,6 +678,7 @@ export function Button({
       target={target === '_blank' ? '_blank' : undefined}
       rel={target === '_blank' ? 'noreferrer' : undefined}
       style={style}
+      data-ud-style={stylePath ? pathId(stylePath) : undefined}
     >
       {children}
     </a>
@@ -732,12 +736,12 @@ export function CtaGroup({
   return (
     <div className={cx('ud-btns', className)}>
       {primary ? (
-        <Button href={primary.url} variant={primaryStyle} target={primary.target}>
+        <Button href={primary.url} variant={primaryStyle} target={primary.target} stylePath={[ctaLabelKey(props, 'primary'), '$box']}>
           <EditableText edit={edit} path={[ctaLabelKey(props, 'primary')]} value={primary.label} placeholder="Button" />
         </Button>
       ) : null}
       {secondary ? (
-        <Button href={secondary.url} variant={secondaryStyle} target={secondary.target}>
+        <Button href={secondary.url} variant={secondaryStyle} target={secondary.target} stylePath={[ctaLabelKey(props, 'secondary'), '$box']}>
           <EditableText edit={edit} path={[ctaLabelKey(props, 'secondary')]} value={secondary.label} placeholder="Button" />
         </Button>
       ) : null}
@@ -799,6 +803,8 @@ export function Media({
   styleKey?: string
 }) {
   const url = str(src)
+  const imageStyle = useElementStyle(path ?? [])
+  const savedImageStyle = imageStyle ? Object.fromEntries(Object.entries(imageStyle).filter(([, value]) => value !== undefined)) : {}
   // In edit mode a click must open the image picker, not the viewer, so the
   // lightbox is only wired up on the published/preview render.
   const canOpen = lightbox && !!url && !edit
@@ -815,9 +821,10 @@ export function Media({
 
   return (
     <div
-      className={cx('ud-media-box', zoom && 'ud-media-box--zoom', canOpen && 'ud-media-box--lightbox', className)}
-      style={{ aspectRatio: RATIOS[ratio] || ratio, ...style }}
-      data-ud-style={styleKey}
+      className={cx('ud-media-box', 'ud-adjustable-image', zoom && 'ud-media-box--zoom', canOpen && 'ud-media-box--lightbox', className)}
+      style={{ aspectRatio: RATIOS[ratio] || ratio, ...style, ...savedImageStyle }}
+      data-ud-style={styleKey || (path ? pathId(path) : undefined)}
+      data-ud-image-style={path ? pathId(path) : undefined}
     >
       {url ? (
         <img
@@ -883,10 +890,10 @@ export function BrandLogo({
   if (!src) return <>{children}</>
   const height = optNum(props[heightField])
   return (
-    <span className={cx('ud-brand-logo', className)} style={height !== undefined ? { '--ud-logo-h': `${height}px` } as CSSProperties : undefined}>
+    <ElementBox as="span" path={[field]} className={cx('ud-brand-logo', 'ud-adjustable-image', className)} style={height !== undefined ? { '--ud-logo-h': `${height}px` } as CSSProperties : undefined}>
       <img src={src} alt={alt || 'Logo'} />
       {edit ? <EditableImage edit={edit} path={[field]} current={src} label="Replace logo" /> : null}
-    </span>
+    </ElementBox>
   )
 }
 

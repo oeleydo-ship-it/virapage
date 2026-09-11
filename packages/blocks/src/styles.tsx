@@ -1,3 +1,5 @@
+import { imagePreviewCss } from './image-preview-styles'
+import { velouraCss } from './veloura-styles'
 import { pawberryCss } from './pawberry-styles'
 import { sproutkindCss } from './sproutkind-styles'
 import { concourseCss } from './concourse-styles'
@@ -13,8 +15,13 @@ import { formaCss } from './forma-styles'
 import { lexaraCss } from './lexara-styles'
 import { marigoldCss } from './marigold-styles'
 
-export const blockCss = pawberryCss + sproutkindCss + concourseCss + lexaraCss + marigoldCss + productCss + formaCss + `
+export const blockCss = imagePreviewCss + velouraCss + pawberryCss + sproutkindCss + concourseCss + lexaraCss + marigoldCss + productCss + formaCss + `
 [data-page-renderer]{container-name:udpage;position:relative;}
+.ud-adjustable-image{overflow:hidden;box-sizing:border-box;--ud-element-image-height:initial;--ud-element-image-fit:initial;--ud-element-image-position:initial;--ud-element-image-layout:initial;--ud-element-image-width:initial;--ud-element-logo-height:initial}
+.ud-adjustable-image:not(.ud-brand-logo)>img{display:block;width:100%;height:var(--ud-element-image-height,var(--ud-section-image-height,var(--ud-natural-image-height,100%)))!important;object-fit:var(--ud-element-image-fit,var(--ud-img-fit,var(--ud-natural-image-fit,cover)))!important;object-position:var(--ud-element-image-position,var(--ud-img-pos,var(--ud-natural-image-position,center)))!important}
+.ud-media-box.ud-adjustable-image>img{position:var(--ud-element-image-layout,absolute)}
+.ud-section[data-img-box]{--ud-section-image-height:auto}
+.ud-adjustable-image.ud-brand-logo>img{width:var(--ud-element-image-width,auto);object-fit:var(--ud-element-image-fit,contain);object-position:var(--ud-element-image-position,center);height:var(--ud-element-image-height,var(--ud-element-logo-height,var(--ud-logo-h,32px)));max-height:none}
 /* Size containment on the page root makes descendant sticky headers stick to the page box, which scrolls away. Keep query containers on each section instead. */
 [data-page-renderer] > *{container-type:inline-size;container-name:udpage;}
 [data-page-renderer][data-surface-pattern="lines"]::before{content:"";pointer-events:none;position:absolute;inset:0;z-index:1;background-image:repeating-linear-gradient(0deg,transparent 0 63px,color-mix(in srgb,var(--color-primary,#8b5cf6) 10%,transparent) 64px);opacity:.55;}

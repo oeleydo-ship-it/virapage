@@ -524,6 +524,7 @@ export type AiReport = {
   /** Copy-only rewrites: how many text slots were offered and replaced. */
   slots?: number
   rewritten?: number
+  added?: number
 }
 
 export type AiGeneratedPage = {
@@ -605,7 +606,7 @@ export const aiApi = {
    * Rewrites a site's copy for its business while keeping the template it was
    * built from. Only the words change - block types, order and design do not.
    */
-  generateTemplateCopy: (body: { site_id: string | number; prompt?: string; tone?: string }) =>
+  generateTemplateCopy: (body: { site_id: string | number; page_id?: number; prompt?: string; tone?: string }) =>
     http.post<{ pages: number; slots: number; rewritten: number; failed_pages: string[] }>(
       '/ai/generate-template-copy',
       body,

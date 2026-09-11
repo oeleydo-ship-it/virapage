@@ -339,7 +339,7 @@ const ELEMENT_FONT_WEIGHTS = [
   { value: '900', label: '900 Black' },
 ]
 
-function BoxStyleEditor({ path, context, label, textPath, variant = 'button' }: { path: EditPath; context: FieldContext; label: string; textPath?: EditPath; variant?: 'button' | 'column' }) {
+function BoxStyleEditor({ path, context, label, textPath, variant = 'button' }: { path: EditPath; context: FieldContext; label: string; textPath?: EditPath; variant?: 'button' | 'column' | 'element' | 'image' }) {
   if (!context.onElementStyleChange) return null
   const value = context.elementStyles?.[pathId(path)] || {}
   function patch(property: keyof ElementTextStyle, next: string | number | undefined) {
@@ -414,10 +414,57 @@ function BoxStyleEditor({ path, context, label, textPath, variant = 'button' }: 
           ]} />
         </Row> : null}
       </> : null}
+      {variant !== 'image' ? <ElementSizeControls path={path} context={context} /> : null}
       <button type="button" className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white" onClick={() => context.onElementStyleChange?.(path, undefined)}><RotateCcw size={12} /> Reset appearance</button>
       {textPath ? <div className="border-t border-zinc-800 pt-3"><p className="mb-3 text-xs font-medium text-zinc-300">Text style</p><ElementStyleEditor path={textPath} context={context} embedded /></div> : null}
     </div>
   </details>
+}
+
+function DimensionInput({ value, onChange, label }: { value: string; onChange: (value: string) => void; label: string }) {
+  const [draft, setDraft] = useState(value)
+  const [invalid, setInvalid] = useState(false)
+  useEffect(() => { setDraft(value); setInvalid(false) }, [value])
+  return <><Input aria-label={label} value={draft} aria-invalid={invalid || undefined} placeholder="Template default" onChange={event => { setDraft(event.target.value); setInvalid(false) }} onBlur={() => {
+    const raw = draft.trim()
+    if (raw && !/^(auto|none|fit-content|\d+(?:\.\d+)?(?:px|%|rem|em|vw|vh)?)$/.test(raw)) { setInvalid(true); return }
+    const normalized = /^\d+(\.\d+)?$/.test(raw) ? `${raw}px` : raw
+    setDraft(normalized); onChange(normalized)
+  }} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { setDraft(value); setInvalid(false) } }} />{invalid ? <p className="text-xs text-red-400" role="alert">Enter a size such as 320px, 80%, or auto.</p> : null}</>
+}
+
+/** Uses the same stored element path on canvas, on mobile and on published pages. */
+function ElementSizeControls({ path, context, image = false }: { path: EditPath; context: FieldContext; image?: boolean }) {
+  const value = context.elementStyles?.[pathId(path)] || {}
+  function patch(property: keyof ElementTextStyle, next: string | number | undefined) {
+    const updated = { ...value, [property]: next }
+    if (next === undefined || next === '') delete updated[property]
+    context.onElementStyleChange?.(path, Object.keys(updated).length ? updated : undefined)
+  }
+  return <div className="space-y-3">
+    <p className="text-xs text-zinc-400">Adjust this element only. Clear a value to inherit the template.</p>
+    {(['width', 'height', 'maxWidth', 'maxHeight'] as const).map(key => <Row key={key} label={{ width: 'Custom width', height: 'Height', maxWidth: 'Maximum width', maxHeight: 'Maximum height' }[key]} help="Use px, %, rem, or auto.">
+      <DimensionInput key={`${context.sectionId}:${pathId(path)}:${key}`} label={{ width: 'Custom width', height: 'Height', maxWidth: 'Maximum width', maxHeight: 'Maximum height' }[key]} value={value[key] || ''} onChange={next => patch(key, next)} />
+    </Row>)}
+    {image && <>
+      <Row label="Image ratio"><Select value={value.aspectRatio || ''} onChange={next => patch('aspectRatio', next)} options={[{ value: '', label: 'Template default' }, { value: 'auto', label: 'Original image / full height' }, { value: '1 / 1', label: 'Square' }, { value: '3 / 4', label: 'Portrait 3:4' }, { value: '4 / 5', label: 'Portrait 4:5' }, { value: '4 / 3', label: 'Landscape 4:3' }, { value: '16 / 9', label: 'Wide 16:9' }]} /></Row>
+      <Row label="Image fit"><Select value={value.objectFit || ''} onChange={next => patch('objectFit', next)} options={[{ value: '', label: 'Template default' }, { value: 'contain', label: 'Contain — show entire image' }, { value: 'cover', label: 'Cover — crop to frame' }, { value: 'fill', label: 'Stretch to frame' }, { value: 'scale-down', label: 'Scale down only' }, { value: 'none', label: 'Original size' }]} /></Row>
+      <Row label="Image position"><Select value={value.objectPosition || ''} onChange={next => patch('objectPosition', next)} options={[{ value: '', label: 'Template default' }, ...['center', 'top', 'bottom', 'left', 'right', 'top left', 'top right', 'bottom left', 'bottom right'].map(position => ({ value: position, label: position }))]} /></Row>
+    </>}
+    <Row label="Horizontal position"><Select value={value.marginLeft === 'auto' ? value.marginRight === 'auto' ? 'center' : 'right' : value.marginRight === 'auto' ? 'left' : ''} onChange={next => {
+      const updated = { ...value }
+      if (!next) { delete updated.marginLeft; delete updated.marginRight }
+      else { updated.marginLeft = next === 'left' ? '0' : 'auto'; updated.marginRight = next === 'right' ? '0' : 'auto' }
+      context.onElementStyleChange?.(path, Object.keys(updated).length ? updated : undefined)
+    }} options={[{ value: '', label: 'Template default' }, { value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }]} /></Row>
+    {(['marginTop', 'marginBottom'] as const).map(key => <Row key={key} label={key === 'marginTop' ? 'Space above' : 'Space below'}><SliderField value={value[key]} onChange={next => patch(key, typeof next === 'number' ? next : undefined)} field={{ key, type: 'slider', label: key === 'marginTop' ? 'Space above' : 'Space below', min: 0, max: 200, step: 1, unit: 'px' }} fallback={0} /></Row>)}
+    <Row label="Opacity"><SliderField value={value.opacity} onChange={next => patch('opacity', typeof next === 'number' ? next : undefined)} field={{ key: 'opacity', type: 'slider', label: 'Opacity', min: 0, max: 1, step: 0.05 }} fallback={1} /></Row>
+  </div>
+}
+
+function ImageStyleEditor({ path, context }: { path: EditPath; context: FieldContext }) {
+  if (!context.onElementStyleChange) return null
+  return <details className="rounded-lg border border-zinc-800 bg-zinc-900/40"><summary className="cursor-pointer px-3 py-2 text-xs text-zinc-300">Individual image settings{context.device && context.device !== 'desktop' ? ` — ${context.device}` : ''}</summary><div className="space-y-3 border-t border-zinc-800 p-3"><ElementSizeControls path={path} context={context} image /><BoxStyleEditor path={path} context={context} label="Image border and spacing" variant="image" /></div></details>
 }
 
 function ElementStyleEditor({ path, context, embedded = false }: { path: EditPath; context: FieldContext; embedded?: boolean }) {
@@ -430,7 +477,7 @@ function ElementStyleEditor({ path, context, embedded = false }: { path: EditPat
   function patch<K extends keyof ElementTextStyle>(property: K, next: ElementTextStyle[K] | undefined) {
     const updated = { ...value, [property]: next }
     for (const [name, entry] of Object.entries(updated)) {
-      if (entry === undefined || entry === '' || entry === 'normal' || entry === 'none') delete (updated as Record<string, unknown>)[name]
+      if (entry === undefined || entry === '') delete (updated as Record<string, unknown>)[name]
     }
     context.onElementStyleChange?.(path, Object.keys(updated).length ? updated : undefined)
   }
@@ -520,8 +567,9 @@ function ElementStyleEditor({ path, context, embedded = false }: { path: EditPat
               ]}
             />
           </Row>
-          <Toggle value={value.fontStyle === 'italic'} onChange={(next) => patch('fontStyle', next ? 'italic' : undefined)} label="Italic" />
-          <Toggle value={value.textDecoration === 'underline'} onChange={(next) => patch('textDecoration', next ? 'underline' : undefined)} label="Underline" />
+          <Toggle value={value.fontStyle === 'italic'} onChange={(next) => patch('fontStyle', next ? 'italic' : 'normal')} label="Italic" />
+          <Toggle value={value.textDecoration === 'underline'} onChange={(next) => patch('textDecoration', next ? 'underline' : 'none')} label="Underline" />
+          {!embedded ? <BoxStyleEditor path={path} context={context} label="Text box" variant="element" /> : null}
           {active ? (
             <button type="button" className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white" onClick={() => context.onElementStyleChange?.(path, undefined)}>
               <RotateCcw size={12} /> Reset this text style
@@ -909,7 +957,7 @@ function FieldControlFields({
 }) {
   const asString = typeof value === 'string' ? value : value === undefined || value === null ? '' : String(value)
   const elementPath: EditPath = [...(context.pathPrefix || []), field.key]
-  const showElementStyle = (field.group || 'content') === 'content'
+  const showElementStyle = (field.group || 'content') === 'content' && !/^(imageAlt|alt|tabsLabel|formId|anchorId)$/.test(field.key)
 
   if (field.key === 'productId' && context.products) {
     return (
@@ -1033,9 +1081,9 @@ function FieldControlFields({
       )
     case 'image':
       return (
-        <Row label={field.label} help={field.help}>
+        <div className="space-y-2"><Row label={field.label} help={field.help}>
           <MediaPicker value={asString} onChange={(url) => onChange(url)} siteId={context.siteId} kind="image" />
-        </Row>
+        </Row>{showElementStyle ? <ImageStyleEditor path={elementPath} context={context} /> : null}</div>
       )
     case 'video':
       return (

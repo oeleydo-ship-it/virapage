@@ -1,3 +1,5 @@
+import { imagePreviewBlocks } from './blocks/image-previews'
+import { velouraBlocks } from './blocks/veloura'
 import { pawberryBlocks } from './blocks/pawberry'
 import { sproutkindBlocks } from './blocks/sproutkind'
 import { concourseBlocks } from './blocks/concourse'
@@ -548,6 +550,8 @@ import {
 import type { BlockDefinition } from './types'
 
 const blocks = [
+  ...imagePreviewBlocks,
+  ...velouraBlocks,
   ...pawberryBlocks,
   ...sproutkindBlocks,
   ...concourseBlocks,
